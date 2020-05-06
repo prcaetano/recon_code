@@ -6,14 +6,9 @@ OPT    = -funroll-loops -O -fopenmp -DSKIPRAW # -DREADWEIGHT
 recon: recon.o io.o multigrid.o grid.o shift.o smooth.o
 	$(CC) $(OPT) recon.o io.o multigrid.o grid.o shift.o smooth.o -o recon -lfftw3_omp -lfftw3 -lm
 
-recon_box: recon_box.o io.o multigrid.o grid.o shift.o smooth.o
-	$(CC) $(OPT) recon_box.o io.o multigrid.o grid.o shift.o smooth.o -o recon_box -lfftw3_omp -lfftw3 -lm
-
 
 recon.o: recon.cpp global.h lcdm.h multigrid.h
 	$(CC) $(OPT) -c recon.cpp
-recon_box.o: recon_box.cpp global.h lcdm.h multigrid.h
-	$(CC) $(OPT) -c recon_box.cpp
 io.o: io.cpp global.h lcdm.h
 	$(CC) $(OPT) -c io.cpp
 multigrid.o: multigrid.cpp global.h lcdm.h multigrid.h
@@ -35,7 +30,7 @@ tex:	notes.tex notes.bib
 	rm -f    notes.toc
 
 
-all:	recon recon_box tex
+all:	recon tex
 
 
 .(PHONY) clean:

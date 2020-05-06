@@ -15,6 +15,7 @@
 // Author:	Martin White	(UCB/LBNL)
 // Written:	20-Apr-2015
 // Modified:	22-Apr-2015	(Take two random catalogs)
+// Modified:    06-May-2020, Pedro Rangel (Optionally uses box data, takes output fnames and Om from cli)
 //
 //
 // This code uses a standard multigrid technique to compute the
@@ -57,21 +58,13 @@ void    myexception(const std::exception& e)
 
 
 
-
-
-
-int	main(int argc, char **argv)
+int	recon(char *data_file, char *randoms1_file, char *randoms2_file,
+          char *output_file, char *shifted_randoms_file,
+          float b, float f, float Rf, float Om, bool is_sim_data)
 {
-  float Rf;
-  if (argc!=7) {
-    std::cout<<"Usage: recon <data-file> <random-file> <random-file>"
-             <<" <bias> <f-growth> <R-filter>"<<std::endl;
-    myexit(1);
-  }
-  bias = atof(argv[4]);		// Sets global variable.
-  beta = atof(argv[5])/bias;	// Sets global variable.
-  Rf   = atof(argv[6]);
-  LCDM lcdm(0.30888871629127124);		// Change OmegaM here if necessary.
+  bias = b;             // Sets global variable
+  beta = f/b;           // Sets global variable
+  LCDM lcdm(Om);
 
 #ifdef	TESTMG
   // Make a cosine wave (only in x-direction) and solve for it with
@@ -95,15 +88,25 @@ int	main(int argc, char **argv)
 #endif
 
   // Read the data and figure out the 3D positions and enclosing box.
-  std::vector<struct particle> D = read_data(argv[1],lcdm);
-  std::vector<struct particle> R1= read_data(argv[2],lcdm);
-  std::vector<struct particle> R2= read_data(argv[3],lcdm);
+  std::vector<struct particle> D;
+  std::vector<struct particle> R1;
+  std::vector<struct particle> R2;
+  if (is_sim_data) {
+    D = read_box_data(data_file);
+    R1= read_box_data(randoms1_file);
+    R2= read_box_data(randoms2_file);
+  }
+  else {
+    D = read_data(data_file,lcdm);
+    R1= read_data(randoms1_file,lcdm);
+    R2= read_data(randoms2_file,lcdm);
+  }
   std::cout<<"# Read "<<std::setw(10)<<D.size()
-           <<" objects from "<<argv[1]<<std::endl;
+           <<" objects from "<<data_file<<std::endl;
   std::cout<<"# Read "<<std::setw(10)<<R1.size()
-           <<" randoms from "<<argv[2]<<std::endl;
+           <<" randoms from "<<randoms1_file<<std::endl;
   std::cout<<"# Read "<<std::setw(10)<<R2.size()
-           <<" randoms from "<<argv[3]<<std::endl;
+           <<" randoms from "<<randoms2_file<<std::endl;
   remap_pos(D,R1,R2);
   std::cout<<"# Enclosing survey in a box of side "<<box.L<<" Mpc/h."
            <<std::endl;
@@ -127,8 +130,27 @@ int	main(int argc, char **argv)
   shift_obj(D ,phi);
   shift_obj(R2,phi);
 
-  write_data(D ,"data_rec.xyzw");
-  write_data(R2,"rand_rec.xyzw");
+  write_data(D ,output_file);
+  write_data(R2,shifted_randoms_file);
 
   return(0);
 }
+
+int	main(int argc, char **argv)
+{
+  if (argc!=11 && argc!=10) {
+    std::cout<<"Usage: recon <data-file> <random-file> <random-file>"
+             <<" <output-file> <output-shifted-randoms-file>"
+             <<" <bias> <f-growth> <R-filter> <Omega m> [is-simulation]"<<std::endl;
+    myexit(1);
+  }
+  bool is_sim_data = false;
+  if (argc==11) {
+    is_sim_data = bool(atoi(argv[10]));
+  }
+  return recon(argv[1], argv[2], argv[3],
+               argv[4], argv[5],
+               atof(argv[6]), atof(argv[7]), atof(argv[8]), atof(argv[9]), is_sim_data);
+}
+
+
