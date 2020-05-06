@@ -60,4 +60,10 @@ extern std::vector<float> make_grid(const std::vector<struct particle>& D,
 extern void shift_obj(std::vector<struct particle>& P,
                       const std::vector<float>& phi);
 
+
+// Interface functions
+extern "C" int recon(char *data_file, char *randoms1_file, char *randoms2_file,
+                     char *output_file, char *shifted_randoms_file,
+                     float b, float f, float Rf, float Om, bool is_sim_data);
+
 #endif
