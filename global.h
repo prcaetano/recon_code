@@ -41,6 +41,9 @@ extern struct particle fill_particle(const double ra, const double dec,
 extern std::vector<struct particle> read_data(const char fname[],
                                               const LCDM& lcdm);
 
+extern std::vector<struct particle> read_box_data(const char fname[]);
+
+
 extern void write_data(const std::vector<struct particle>& P,
                        const char fname[]);
 

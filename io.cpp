@@ -77,6 +77,42 @@ std::vector<struct particle> read_data(const char fname[], const LCDM& lcdm) {
 }
 
 
+std::vector<struct particle> read_box_data(const char fname[]) {
+  // Load the data from an ascii file.
+  std::ifstream fs(fname);
+  if (!fs) {
+    std::cerr<<"Unable to open "<<fname<<" for reading."<<std::endl;
+    myexit(1);
+  }
+  std::string buf;
+  do {        // Skip any preamble comment lines.
+    getline(fs,buf);
+  } while(!fs.eof() && buf[0]=='#');
+  std::vector<struct particle> P;
+  try {P.reserve(10000000);} catch(std::exception& e) {myexception(e);}
+  while (!fs.eof()) {
+    double x,y,z,wt;
+#ifdef  READWEIGHT
+    std::istringstream(buf) >> x >> y >> z >> wt;
+#else
+    std::istringstream(buf) >> x >> y >> z;
+    wt = 1.0;
+#endif
+    struct particle curp;
+    curp.pos[0] = x;
+    curp.pos[1] = y;
+    curp.pos[2] = z;
+    curp.wt     = wt;
+
+    try {
+      P.push_back(curp);
+    } catch(std::exception& e) {myexception(e);}
+    getline(fs,buf);
+  }
+  fs.close();
+  return(P);
+}
+
 
 void	write_data(const std::vector<struct particle>& P, const char fname[]) {
 // Writes the normalized positions to a file.

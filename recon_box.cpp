@@ -64,7 +64,7 @@ int	main(int argc, char **argv)
 {
   float Rf;
   if (argc!=7) {
-    std::cout<<"Usage: recon <data-file> <random-file> <random-file>"
+    std::cout<<"Usage: recon_box <data-file> <random-file> <random-file>"
              <<" <bias> <f-growth> <R-filter>"<<std::endl;
     myexit(1);
   }
@@ -95,9 +95,9 @@ int	main(int argc, char **argv)
 #endif
 
   // Read the data and figure out the 3D positions and enclosing box.
-  std::vector<struct particle> D = read_data(argv[1],lcdm);
-  std::vector<struct particle> R1= read_data(argv[2],lcdm);
-  std::vector<struct particle> R2= read_data(argv[3],lcdm);
+  std::vector<struct particle> D = read_box_data(argv[1]);
+  std::vector<struct particle> R1= read_box_data(argv[2]);
+  std::vector<struct particle> R2= read_box_data(argv[3]);
   std::cout<<"# Read "<<std::setw(10)<<D.size()
            <<" objects from "<<argv[1]<<std::endl;
   std::cout<<"# Read "<<std::setw(10)<<R1.size()
