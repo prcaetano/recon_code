@@ -4,6 +4,7 @@ import os
 import yaml
 from ctypes import *
 
+# Import external C code
 try:
     lib = CDLL("recon.so")
 except OSError:
@@ -15,6 +16,7 @@ recon.argtypes = [c_char_p, c_char_p, c_char_p,
                   c_float, c_float, c_float, c_float, c_bool]
 recon.restype = c_int
 
+
 if __name__ == "__main__":
     try:
         config_file = sys.argv[1]
@@ -25,26 +27,26 @@ if __name__ == "__main__":
     with open(config_file, "r") as f:
         config = yaml.safe_load(f)
 
-    input_path = config["input_reconstruction"]["input_path"]
+    input_path = config["input"]["input_path"]
     data_file = os.path.join(input_path,
-                             config["input_reconstruction"]["data_fname"]).encode()
+                             config["input"]["data_fname"]).encode()
     randoms1_file = os.path.join(input_path,
-                                 config["input_reconstruction"]["randoms1_fname"]).encode()
+                                 config["input"]["randoms1_fname"]).encode()
     randoms2_file = os.path.join(input_path,
-                                 config["input_reconstruction"]["randoms2_fname"]).encode()
+                                 config["input"]["randoms2_fname"]).encode()
 
-    output_path = config["output_reconstruction"]["output_path"]
+    output_path = config["output"]["output_path"]
     output_data_file = os.path.join(output_path,
-                                    config["output_reconstruction"]["data_fname"]).encode()
+                                    config["output"]["displaced_catalog_fname"]).encode()
     shifted_randoms_file = os.path.join(output_path,
-                                        config["output_reconstruction"]["shifted_randoms_fname"]).encode()
+                                        config["output"]["shifted_random_catalog_fname"]).encode()
 
-    b = c_float(config["input_reconstruction"]["bias"])
-    f = c_float(config["input_reconstruction"]["f"])
-    Rf = c_float(config["input_reconstruction"]["R_smooth"])
-    Om = c_float(config["input_reconstruction"]["Omega_m"])
+    b = c_float(config["reconstruction_config"]["bias"])
+    f = c_float(config["reconstruction_config"]["f"])
+    Rf = c_float(config["reconstruction_config"]["R_smooth"])
+    Om = c_float(config["reconstruction_config"]["Omega_m"])
 
-    is_sim_data = c_bool(config["input_reconstruction"]["is_simulation"])
+    is_sim_data = c_bool(config["reconstruction_config"]["is_simulation"])
 
     recon(data_file, randoms1_file, randoms2_file,
           output_data_file, shifted_randoms_file,
