@@ -58,9 +58,9 @@ void    myexception(const std::exception& e)
 
 
 
-int	recon(char *data_file, char *randoms1_file, char *randoms2_file,
-          char *output_file, char *shifted_randoms_file,
-          float b, float f, float Rf, float Om, bool is_sim_data)
+extern "C" int	recon(char *data_file, char *randoms1_file, char *randoms2_file,
+                      char *output_file, char *shifted_randoms_file,
+                      float b, float f, float Rf, float Om, bool is_sim_data)
 {
   bias = b;             // Sets global variable
   beta = f/b;           // Sets global variable

@@ -62,8 +62,8 @@ extern void shift_obj(std::vector<struct particle>& P,
 
 
 // Interface functions
-extern int recon(char *data_file, char *randoms1_file, char *randoms2_file,
-                 char *output_file, char *shifted_randoms_file,
-                 float b, float f, float Rf, float Om, bool is_sim_data);
+extern "C" int recon(char *data_file, char *randoms1_file, char *randoms2_file,
+                     char *output_file, char *shifted_randoms_file,
+                     float b, float f, float Rf, float Om, bool is_sim_data);
 
 #endif
