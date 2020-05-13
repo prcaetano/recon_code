@@ -47,16 +47,28 @@ void MultiGrid::gauss_seidel(std::vector<float>& v,
     for (int rb=0; rb<2; ++rb) {
 #pragma omp parallel for shared(v,f,rb)
       for (int ix=0; ix<N; ++ix) {
-        float rx=box.ctr[0]+len*(ix-N/2);
+#ifdef DISTANT_OBSERVER_ZAXIS
+        float rx= 0;
+#else
+        float rx= box.ctr[0]+len*(ix-N/2);
+#endif
         int ixp =(ix+1  )%N;
         int ixm =(ix-1+N)%N;
         for (int iy=0; iy<N; ++iy) {
-          float ry=box.ctr[1]+len*(iy-N/2);
+#ifdef DISTANT_OBSERVER_ZAXIS
+          float ry= 0;
+#else
+          float ry= box.ctr[1]+len*(iy-N/2);
+#endif
           int iyp =(iy+1  )%N;
           int iym =(iy-1+N)%N;
           int st  =((ix+iy)%2==rb)?0:1;
           for (int iz=st; iz<N; iz+=2) {
-            float rz=box.ctr[2]+len*(iz-N/2);
+#ifdef DISTANT_OBSERVER_ZAXIS
+            float rz= 1.;
+#else
+            float rz= box.ctr[2]+len*(iz-N/2);
+#endif
             float g =beta/(rx*rx+ry*ry+rz*rz+1e-30);
             int izp=(iz+1  )%N;
             int izm=(iz-1+N)%N;
@@ -98,15 +110,27 @@ void MultiGrid::jacobi(std::vector<float>& v,
   for (int iter=0; iter<Nit; ++iter) {
 #pragma omp parallel for shared(v,f,jac)
     for (int ix=0; ix<N; ++ix) {
+#ifdef DISTANT_OBSERVER_ZAXIS
+      float rx= 0;
+#else
       float rx= box.ctr[0]+len*(ix-N/2);
+#endif
       int ixp = (ix+1  )%N;
       int ixm = (ix-1+N)%N;
       for (int iy=0; iy<N; ++iy) {
+#ifdef DISTANT_OBSERVER_ZAXIS
+        float ry= 0;
+#else
         float ry= box.ctr[1]+len*(iy-N/2);
+#endif
         int iyp = (iy+1  )%N;
         int iym = (iy-1+N)%N;
         for (int iz=0; iz<N; ++iz) {
+#ifdef DISTANT_OBSERVER_ZAXIS
+          float rz= 1.;
+#else
           float rz= box.ctr[2]+len*(iz-N/2);
+#endif
           float g = beta/(rx*rx+ry*ry+rz*rz+1e-30);
           int izp = (iz+1  )%N;
           int izm = (iz-1+N)%N;
@@ -151,15 +175,27 @@ std::vector<float> MultiGrid::residual(const std::vector<float>& v,
   // Note the relative signs here and in jacobi (or gauss_seidel).
 #pragma omp parallel for shared(r,v,f)
   for (int ix=0; ix<N; ++ix) {
-    float rx=box.ctr[0]+len*(ix-N/2);
+#ifdef DISTANT_OBSERVER_ZAXIS
+    float rx= 0;
+#else
+    float rx= box.ctr[0]+len*(ix-N/2);
+#endif
     int ixp =(ix+1  )%N;
     int ixm =(ix-1+N)%N;
     for (int iy=0; iy<N; ++iy) {
-      float ry=box.ctr[1]+len*(iy-N/2);
+#ifdef DISTANT_OBSERVER_ZAXIS
+      float ry= 0;
+#else
+      float ry= box.ctr[1]+len*(iy-N/2);
+#endif
       int iyp =(iy+1  )%N;
       int iym =(iy-1+N)%N;
       for (int iz=0; iz<N; ++iz) {
-        float rz=box.ctr[2]+len*(iz-N/2);
+#ifdef DISTANT_OBSERVER_ZAXIS
+        float rz= 1.;
+#else
+        float rz= box.ctr[2]+len*(iz-N/2);
+#endif
         float g =beta/(rx*rx+ry*ry+rz*rz+1e-30);
         int izp =(iz+1  )%N;
         int izm =(iz-1+N)%N;

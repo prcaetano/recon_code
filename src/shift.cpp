@@ -69,14 +69,20 @@ void	shift_obj(std::vector<struct particle>& P,
     px+= (phi[Ng*Ng*ixP+Ng*iyp+izp]-phi[Ng*Ng*ix0+Ng*iyp+izp])*fac*wt;
     py+= (phi[Ng*Ng*ixp+Ng*iyP+izp]-phi[Ng*Ng*ixp+Ng*iy0+izp])*fac*wt;
     pz+= (phi[Ng*Ng*ixp+Ng*iyp+izP]-phi[Ng*Ng*ixp+Ng*iyp+iz0])*fac*wt;
+#ifdef DISTANT_OBSERVER_ZAXIS
     float rx = box.ctr[0]+box.L*(P[nn].pos[0]-0.5);
     float ry = box.ctr[1]+box.L*(P[nn].pos[1]-0.5);
     float rz = box.ctr[2]+box.L*(P[nn].pos[2]-0.5);
+#else
+    float rx = 0.;
+    float ry = 0.;
+    float rz = 1.;
+#endif
     float r2 = rx*rx+ry*ry+rz*rz;
     float pr = beta*(px*rx+py*ry+pz*rz);
     P[nn].pos[0] -= px + pr*rx/r2;
     P[nn].pos[1] -= py + pr*ry/r2;
-    P[nn].pos[2] -= pz + pz*rz/r2;
+    P[nn].pos[2] -= pz + pr*rz/r2;
     sum += px*px+py*py+pz*pz;
   }
   sum = sqrt(sum/3/P.size());
