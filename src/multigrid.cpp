@@ -405,24 +405,30 @@ void MultiGrid::print_error(const std::vector<float>& v,
 std::vector<float> MultiGrid::fmg(const std::vector<float>& f1h,
                                   const int N) {
 // The full multigrid cycle, also done recursively.
+  int N_iter_fmg=1;
+  if (N==Ng)
+    N_iter_fmg=2;
+
   std::vector<float> v1h;
-  if (N>4 && N%2==0) {
-    // Recurse to a coarser grid.
-    std::vector<float> f2h,v2h;
-    f2h = restrict(f1h,N);
-    v2h = fmg(f2h,N/2);
-    v1h = prolong(v2h,N/2);
+  for (int i=0; i<N_iter_fmg; i++) {
+    if (N>4 && N%2==0) {
+      // Recurse to a coarser grid.
+      std::vector<float> f2h,v2h;
+      f2h = restrict(f1h,N);
+      v2h = fmg(f2h,N/2);
+      v1h = prolong(v2h,N/2);
+    }
+    else {
+      // Start with a guess of zero -- should be no memory issues at this
+      // coarsest level.
+      v1h.resize(N*N*N);
+      std::fill(v1h.begin(),v1h.end(),0.0);
+    }
+    const int Niter=6;
+    for (int iter=0; iter<Niter; ++iter) {
+      vcycle(v1h,f1h,N);
+    }
+    if (N==Ng) print_error(v1h,f1h,N);
   }
-  else {
-    // Start with a guess of zero -- should be no memory issues at this
-    // coarsest level.
-    v1h.resize(N*N*N);
-    std::fill(v1h.begin(),v1h.end(),0.0);
-  }
-  const int Niter=6;
-  for (int iter=0; iter<Niter; ++iter) {
-    vcycle(v1h,f1h,N);
-  }
-  if (N==Ng) print_error(v1h,f1h,N);
   return(v1h);
 }
