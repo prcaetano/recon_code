@@ -2,6 +2,7 @@
 import sys
 import os
 import yaml
+import subprocess
 from ctypes import *
 
 
@@ -57,10 +58,10 @@ if __name__ == "__main__":
               output_data_file.encode(), shifted_randoms_file.encode(),
               c_float(b), c_float(f), c_float(Rf), c_float(Om), c_bool(is_sim_data))
     else:
-        cmd_line = "recon {} {} {} {} {} {} {} {} {} {}".format(data_file, randoms1_file,
-                                                                randoms2_file, output_data_file,
-                                                                shifted_randoms_file, b, f, Rf, Om,
-                                                                is_sim_data)
-        print(cmd_line)
-        os.system(cmd_line)
+        cmd = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])), "recon")
+        args = "{} {} {} {} {} {} {} {} {} {}".format(data_file, randoms1_file,
+                                                      randoms2_file, output_data_file,
+                                                      shifted_randoms_file, b, f, Rf, Om,
+                                                      int(is_sim_data))
+        subprocess.run([cmd + " " + args], shell=True)
 
