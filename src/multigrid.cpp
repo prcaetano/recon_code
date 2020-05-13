@@ -418,7 +418,7 @@ std::vector<float> MultiGrid::fmg(const std::vector<float>& f1h,
       v2h = fmg(f2h,N/2);
       v1h = prolong(v2h,N/2);
     }
-    else {
+    else if (i==0){
       // Start with a guess of zero -- should be no memory issues at this
       // coarsest level.
       v1h.resize(N*N*N);
