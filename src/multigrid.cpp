@@ -77,12 +77,16 @@ void MultiGrid::gauss_seidel(std::vector<float>& v,
                     (1+g*rx*rx)*(v[N*N*ixp+N*iy +iz ]+v[N*N*ixm+N*iy +iz ])+
                     (1+g*ry*ry)*(v[N*N*ix +N*iyp+iz ]+v[N*N*ix +N*iym+iz ])+
                     (1+g*rz*rz)*(v[N*N*ix +N*iy +izp]+v[N*N*ix +N*iy +izm])+
+#ifndef DISTANT_OBSERVER_ZAXIS
                     (g*rx*ry/2)*(v[N*N*ixp+N*iyp+iz ]+v[N*N*ixm+N*iym+iz ]
                                 -v[N*N*ixm+N*iyp+iz ]-v[N*N*ixp+N*iym+iz ])+
                     (g*rx*rz/2)*(v[N*N*ixp+N*iy +izp]+v[N*N*ixm+N*iy +izm]
                                 -v[N*N*ixm+N*iy +izp]-v[N*N*ixp+N*iy +izm])+
                     (g*ry*rz/2)*(v[N*N*ix +N*iyp+izp]+v[N*N*ix +N*iym+izm]
                                 -v[N*N*ix +N*iym+izp]-v[N*N*ix +N*iyp+izm]);
+#else
+                    0;
+#endif
             v[ii]/= 6+2*beta;
           }
         }
@@ -145,9 +149,13 @@ void MultiGrid::jacobi(std::vector<float>& v,
                                 -v[N*N*ixm+N*iy +izp]-v[N*N*ixp+N*iy +izm])+
                     (g*ry*rz/2)*(v[N*N*ix +N*iyp+izp]+v[N*N*ix +N*iym+izm]
                                 -v[N*N*ix +N*iym+izp]-v[N*N*ix +N*iyp+izm])+
+#ifndef DISTANT_OBSERVER_ZAXIS
                     (g*rx*h)   *(v[N*N*ixp+N*iy +iz ]-v[N*N*ixm+N*iy +iz ])+
                     (g*ry*h)   *(v[N*N*ix +N*iyp+iz ]-v[N*N*ix +N*iym+iz ])+
                     (g*rz*h)   *(v[N*N*ix +N*iy +izp]-v[N*N*ix +N*iy +izm]);
+#else
+                    0;
+#endif
           jac[ii]/= 6+2*beta;
         }
       }
@@ -210,9 +218,13 @@ std::vector<float> MultiGrid::residual(const std::vector<float>& v,
                             -v[N*N*ixm+N*iy +izp]-v[N*N*ixp+N*iy +izm])-
                 (g*ry*rz/2)*(v[N*N*ix +N*iyp+izp]+v[N*N*ix +N*iym+izm]
                             -v[N*N*ix +N*iym+izp]-v[N*N*ix +N*iyp+izm])-
+#ifndef DISTANT_OBSERVER_ZAXIS
                 (g*rx*h)   *(v[N*N*ixp+N*iy +iz ]-v[N*N*ixm+N*iy +iz ])-
                 (g*ry*h)   *(v[N*N*ix +N*iyp+iz ]-v[N*N*ix +N*iym+iz ])-
                 (g*rz*h)   *(v[N*N*ix +N*iy +izp]-v[N*N*ix +N*iy +izm]);
+#else
+                0;
+#endif
       }
     }
   }
