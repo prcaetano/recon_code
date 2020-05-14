@@ -1,5 +1,5 @@
 CC     = g++
-OPT    = -funroll-loops -O3 -fopenmp -fPIC -ffast-math -DSKIPRAW -I./include # -DREADWEIGHT
+OPT    = -funroll-loops -O3 -fopenmp -fPIC -ffast-math -DSKIPRAW -I./include #-DDISTANT_OBSERVER_ZAXIS # -DREADWEIGHT
 
 all: ./lib/recon.so recon
 

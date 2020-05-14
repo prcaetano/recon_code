@@ -148,6 +148,11 @@ int	main(int argc, char **argv)
   if (argc==11) {
     is_sim_data = bool(atoi(argv[10]));
   }
+#ifdef DISTANT_OBSERVER_ZAXIS
+  std::cout<<"# Distant observer in z-axis assumed for RSD corrections."<<std::endl;
+#else
+  std::cout<<"# Fixed observer at (x,y,z) = (0,0,0) assumed for RSD corrections."<<std::endl;
+#endif
   return recon(argv[1], argv[2], argv[3],
                argv[4], argv[5],
                atof(argv[6]), atof(argv[7]), atof(argv[8]), atof(argv[9]), is_sim_data);
