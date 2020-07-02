@@ -77,7 +77,8 @@ std::vector<struct particle> read_data(const char fname[], const LCDM& lcdm) {
 }
 
 
-std::vector<struct particle> read_box_data(const char fname[]) {
+std::vector<struct particle> read_box_data(const char fname[], int ncols,
+                                           bool is_redshift_space, bool read_weight) {
   // Load the data from an ascii file.
   std::ifstream fs(fname);
   if (!fs) {
@@ -91,17 +92,32 @@ std::vector<struct particle> read_box_data(const char fname[]) {
   std::vector<struct particle> P;
   try {P.reserve(10000000);} catch(std::exception& e) {myexception(e);}
   while (!fs.eof()) {
-    double x,y,z,wt;
-#ifdef  READWEIGHT
-    std::istringstream(buf) >> x >> y >> z >> wt;
-#else
-    std::istringstream(buf) >> x >> y >> z;
-    wt = 1.0;
-#endif
+    double x,y,z,z_rsd,wt;
+    if (ncols == 4) {
+      if (read_weight) {
+        std::istringstream(buf) >> x >> y >> z >> wt;
+      }
+      else {
+        std::istringstream(buf) >> x >> y >> z >> z_rsd;
+        wt = 1.0;
+      }
+    }
+    else if (ncols == 3) {
+      if (read_weight) {
+        std::istringstream(buf) >> x >> y >> z >> wt;
+      }
+      else {
+        std::istringstream(buf) >> x >> y >> z;
+        wt = 1.0;
+      }
+    }
     struct particle curp;
     curp.pos[0] = x;
     curp.pos[1] = y;
-    curp.pos[2] = z;
+    if (is_redshift_space && ncols == 4)
+      curp.pos[2] = z_rsd;
+    else
+      curp.pos[2] = z;
     curp.wt     = wt;
 
     try {
@@ -122,13 +138,16 @@ void	write_data(const std::vector<struct particle>& P, const char fname[]) {
     myexit(1);
   }
   for (int nn=0; nn<P.size(); ++nn)
-    ofs<<std::fixed<<std::setw(15)<<std::setprecision(4)
+    ofs<<std::fixed<<std::setw(15)<<std::setprecision(6)
        <<box.ctr[0]+box.L*(P[nn].pos[0]-0.5)
-       <<std::fixed<<std::setw(15)<<std::setprecision(4)
+       <<std::fixed<<std::setw(15)<<std::setprecision(6)
        <<box.ctr[1]+box.L*(P[nn].pos[1]-0.5)
-       <<std::fixed<<std::setw(15)<<std::setprecision(4)
+       <<std::fixed<<std::setw(15)<<std::setprecision(6)
        <<box.ctr[2]+box.L*(P[nn].pos[2]-0.5)
-       <<std::fixed<<std::setw(15)<<std::setprecision(4)
-       <<P[nn].wt<<std::endl;
+#ifdef DDONTWRITEWEIGHT
+       <<std::fixed<<std::setw(15)<<std::setprecision(6)
+       <<P[nn].wt
+#endif
+       <<std::endl;
   ofs.close();
 }

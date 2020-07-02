@@ -60,11 +60,22 @@ void    myexception(const std::exception& e)
 
 extern "C" int	recon(char *data_file, char *randoms1_file, char *randoms2_file,
                       char *output_file, char *shifted_randoms_file,
-                      float b, float f, float Rf, float Om, bool is_sim_data)
+                      float b, float f, float Rf, float Om, bool is_sim_data,
+                      bool is_redshift_space, bool read_weight,
+                      int rsd_convention) // rsd_convention: 0 -> RecSym, 1 -> RecIso
 {
   bias = b;             // Sets global variable
   beta = f/b;           // Sets global variable
   LCDM lcdm(Om);
+
+  if (is_redshift_space) {
+      std::cout<<"# Working on real space (setting f = 0)."<<std::endl;
+      beta = 0;
+      f = 0;
+  }
+  else {
+      std::cout<<"# Working on redshift space."<<std::endl;
+  }
 
 #ifdef	TESTMG
   // Make a cosine wave (only in x-direction) and solve for it with
@@ -87,14 +98,20 @@ extern "C" int	recon(char *data_file, char *randoms1_file, char *randoms2_file,
   return(0);
 #endif
 
+#ifdef DISTANT_OBSERVER_ZAXIS
+  std::cout<<"# Distant observer in z-axis assumed for RSD corrections."<<std::endl;
+#else
+  std::cout<<"# Fixed observer at (x,y,z) = (0,0,0) assumed for RSD corrections."<<std::endl;
+#endif
+
   // Read the data and figure out the 3D positions and enclosing box.
   std::vector<struct particle> D;
   std::vector<struct particle> R1;
   std::vector<struct particle> R2;
   if (is_sim_data) {
-    D = read_box_data(data_file);
-    R1= read_box_data(randoms1_file);
-    R2= read_box_data(randoms2_file);
+    D = read_box_data(data_file, 4, is_redshift_space, read_weight);
+    R1= read_box_data(randoms1_file, 3, false, false);
+    R2= read_box_data(randoms2_file, 3, false, false);
   }
   else {
     D = read_data(data_file,lcdm);
@@ -128,6 +145,13 @@ extern "C" int	recon(char *data_file, char *randoms1_file, char *randoms2_file,
   // the line-of-sight shift for the randoms you need to change beta before
   // calling shift_obj.
   shift_obj(D ,phi);
+  if (rsd_convention == 1) { // RecIso convention
+    beta = 0;
+    std::cout<<"# Assuming Isotropic Reconstruction convention."<<std::endl;
+  }
+  else {
+    std::cout<<"# Assuming Symmetric Reconstruction convention."<<std::endl;
+  }
   shift_obj(R2,phi);
 
   write_data(D ,output_file);
@@ -148,14 +172,11 @@ int	main(int argc, char **argv)
   if (argc==11) {
     is_sim_data = bool(atoi(argv[10]));
   }
-#ifdef DISTANT_OBSERVER_ZAXIS
-  std::cout<<"# Distant observer in z-axis assumed for RSD corrections."<<std::endl;
-#else
-  std::cout<<"# Fixed observer at (x,y,z) = (0,0,0) assumed for RSD corrections."<<std::endl;
-#endif
+
   return recon(argv[1], argv[2], argv[3],
                argv[4], argv[5],
-               atof(argv[6]), atof(argv[7]), atof(argv[8]), atof(argv[9]), is_sim_data);
+               atof(argv[6]), atof(argv[7]), atof(argv[8]), atof(argv[9]), is_sim_data,
+               true, false, 0);
 }
 
 

@@ -41,7 +41,8 @@ extern struct particle fill_particle(const double ra, const double dec,
 extern std::vector<struct particle> read_data(const char fname[],
                                               const LCDM& lcdm);
 
-extern std::vector<struct particle> read_box_data(const char fname[]);
+extern std::vector<struct particle> read_box_data(const char fname[], int ncols,
+                                                  bool is_redshift_space, bool read_weight);
 
 
 extern void write_data(const std::vector<struct particle>& P,
@@ -64,6 +65,8 @@ extern void shift_obj(std::vector<struct particle>& P,
 // Interface functions
 extern "C" int recon(char *data_file, char *randoms1_file, char *randoms2_file,
                      char *output_file, char *shifted_randoms_file,
-                     float b, float f, float Rf, float Om, bool is_sim_data);
+                     float b, float f, float Rf, float Om, bool is_sim_data,
+                     bool is_redshift_space, bool read_weight,
+                     int rsd_convention);
 
 #endif

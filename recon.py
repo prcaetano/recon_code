@@ -10,12 +10,8 @@ if __name__ == "__main__":
     try:
         config_file = sys.argv[1]
     except IndexError:
-        print("Usage: recon.py <YAML configuration file> [run-in-subshell?]")
+        print("Usage: recon.py <YAML configuration file>")
         exit()
-    try:
-        run_in_subshell = sys.argv[2]
-    except IndexError:
-        run_in_subshell = False
 
     with open(config_file, "r") as f:
         config = yaml.safe_load(f)
@@ -40,28 +36,34 @@ if __name__ == "__main__":
     Om = config["reconstruction_config"]["Omega_m"]
 
     is_sim_data = config["reconstruction_config"]["is_simulation"]
+    is_redshift_space = config["reconstruction_config"]["is_redshift_space"]
+    try:
+        read_weight = config["reconstruction_config"]["read_weight"]
+    except KeyError:
+        read_weight = False
 
-    if not run_in_subshell:
-        # Import external C code
-        try:
-            lib = CDLL("recon.so")
-        except OSError:
-            raise RuntimeError("Couldn't load the library recon.so. Make sure it was "
-                  "compiled and LD_LIBRARY_PATH contains the directory holding it.")
-        recon = lib.recon
-        recon.argtypes = [c_char_p, c_char_p, c_char_p,
-                          c_char_p, c_char_p,
-                          c_float, c_float, c_float, c_float, c_bool]
-        recon.restype = c_int
+    rsd_convention_enum = {"RecSym": 0, "RecIso": 1}
+    try:
+        rsd_convention = config["reconstruction_config"]["rsd_convention"]
+    except KeyError:
+        rsd_convention = "RecSym"
+    rsd_convention_int = rsd_convention_enum[rsd_convention]
 
-        recon(data_file.encode(), randoms1_file.encode(), randoms2_file.encode(),
-              output_data_file.encode(), shifted_randoms_file.encode(),
-              c_float(b), c_float(f), c_float(Rf), c_float(Om), c_bool(is_sim_data))
-    else:
-        cmd = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])), "recon")
-        args = "{} {} {} {} {} {} {} {} {} {}".format(data_file, randoms1_file,
-                                                      randoms2_file, output_data_file,
-                                                      shifted_randoms_file, b, f, Rf, Om,
-                                                      int(is_sim_data))
-        subprocess.run([cmd + " " + args], shell=True)
+    # Import external C code
+    try:
+        lib = CDLL("recon.so")
+    except OSError:
+        raise RuntimeError("Couldn't load the library recon.so. Make sure it was "
+              "compiled and LD_LIBRARY_PATH contains the directory holding it.")
+    recon = lib.recon
+    recon.argtypes = [c_char_p, c_char_p, c_char_p,
+                      c_char_p, c_char_p,
+                      c_float, c_float, c_float, c_float, c_bool,
+                      c_bool, c_bool, c_int]
+    recon.restype = c_int
+
+    recon(data_file.encode(), randoms1_file.encode(), randoms2_file.encode(),
+          output_data_file.encode(), shifted_randoms_file.encode(),
+          c_float(b), c_float(f), c_float(Rf), c_float(Om), c_bool(is_sim_data),
+          c_bool(is_redshift_space), c_bool(read_weight), c_int(rsd_convention_int))
 
