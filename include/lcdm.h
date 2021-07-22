@@ -29,7 +29,7 @@ class   LCDM {
 private:
   static const int      N=1024;
   std::vector<double>   zz,chi;
-  double                omm,oml,fact,dz;
+  double                omm,oml,fact,chifact,dz;
   double H(const double z) {
     const double Lhub=2997.925; // Mpc/h.
     double HofZ=sqrt(omm*pow(1+z,3)+oml);
@@ -68,6 +68,7 @@ public:
       }
     }
     fact = N/zmax;
+    chifact = N/chi[N-1];
     dz   = zz[1]-zz[0];
   }
   double chiz(const double z) const {
@@ -82,6 +83,18 @@ public:
     // Note this needs one "extra" bin beyond z to do the interpolation.
     double chival=chi[ibin]+(chi[ibin+1]-chi[ibin])*(z-zz[ibin])/dz;
     return(chival);
+  }
+  double zchi(const double chival) const {
+    // Returns the redshift given a comoving angular diameter distance, in Mpc/h.
+    int ibin=(int)(chifact*chival);
+    if (ibin<0 || ibin>=chi.size()-1) {
+      std::cout<<"zchi: chival="<<chival<<" out of lookup range ["<<chi[0]<<","
+               <<chi[chi.size()-1]<<")."<<std::endl;
+      myexit(1);
+    }
+    // Note this needs one "extra" bin beyond z to do the interpolation.
+    double zval=zz[ibin]+(zz[ibin+1]-zz[ibin])*(chival-chi[ibin])/(chi[ibin+1] - chi[ibin]);
+    return(zval);
   }
 };
 

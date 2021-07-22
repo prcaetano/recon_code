@@ -1,0 +1,8 @@
+*.o
+*.aux
+*.log
+*.toc
+/tex/*.aux
+/tex/*.log
+/tex/*.toc
+recon
