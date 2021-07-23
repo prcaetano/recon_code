@@ -27,9 +27,10 @@ class   LCDM {
 // Assumes "classical" LCDM, i.e. radiation and/or massive neutrino
 // contributions are not included.
 private:
-  static const int      N=1024;
+  static const int      N=4*1024;
   std::vector<double>   zz,chi;
-  double                omm,oml,fact,chifact,dz;
+  std::vector<double>   zz2, chi2;
+  double                omm,oml,fact,chifact,dz,dchi;
   double H(const double z) {
     const double Lhub=2997.925; // Mpc/h.
     double HofZ=sqrt(omm*pow(1+z,3)+oml);
@@ -68,8 +69,24 @@ public:
       }
     }
     fact = N/zmax;
-    chifact = N/chi[N-1];
     dz   = zz[1]-zz[0];
+
+    try {
+      zz2.resize(N);
+      chi2.resize(N);
+    } catch(std::exception& e) {myexception(e);}
+
+    int idx=0;
+    zz2[0]=chi2[0]=0;
+    const double chimax=chi[N-10];
+    for (int i=1; i<N; ++i) {
+        chi2[i] = i*chimax/(N-1.);
+        while(chi[idx+1] < chi2[i])
+            idx++;
+        zz2[i] = zz[idx] + dz * (chi2[i] - chi[idx]) / (chi[idx+1] - chi[idx]);
+    }
+    chifact = N/chimax;
+    dchi    = chi2[1] - chi2[0];
   }
   double chiz(const double z) const {
     // Returns the comoving angular diameter distance, in Mpc/h.  Uses
@@ -87,13 +104,13 @@ public:
   double zchi(const double chival) const {
     // Returns the redshift given a comoving angular diameter distance, in Mpc/h.
     int ibin=(int)(chifact*chival);
-    if (ibin<0 || ibin>=chi.size()-1) {
-      std::cout<<"zchi: chival="<<chival<<" out of lookup range ["<<chi[0]<<","
-               <<chi[chi.size()-1]<<")."<<std::endl;
+    if (ibin<0 || ibin>=chi2.size()-1) {
+      std::cout<<"zchi: chival="<<chival<<" out of lookup range ["<<chi2[0]<<","
+               <<chi2[chi2.size()-1]<<")."<<std::endl;
       myexit(1);
     }
     // Note this needs one "extra" bin beyond z to do the interpolation.
-    double zval=zz[ibin]+(zz[ibin+1]-zz[ibin])*(chival-chi[ibin])/(chi[ibin+1] - chi[ibin]);
+    double zval=zz2[ibin]+(zz2[ibin+1]-zz2[ibin])*(chival-chi2[ibin])/dchi;
     return(zval);
   }
 };

@@ -41,8 +41,8 @@ extern struct particle fill_particle(const double ra, const double dec,
 extern std::vector<struct particle> read_data(const char fname[],
                                               const LCDM& lcdm);
 
-extern void write_data(const std::vector<struct particle>& P,
-                       const char fname[]);
+extern void write_and_destruct_data(std::vector<struct particle>& P,
+                                    const char fname[], const LCDM& lcdm);
 
 extern void remap_pos(std::vector<struct particle>& D,
                       std::vector<struct particle>& R1,
