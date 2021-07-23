@@ -4,7 +4,9 @@ import os
 import yaml
 import subprocess
 import tempfile
+import numpy as np
 import ndfilehandler as fh
+import h5py
 from astropy.table import Table
 from astropy.io import fits
 #from ctypes import *
@@ -12,10 +14,9 @@ from astropy.io import fits
 
 def read_fits_file(fits_fname, fh_fname):
     """
-    Reads relevant colums from fits file and converts to a filehandler file
+    Reads relevant columns from fits file and converts to a filehandler file
     to be passed to the C code
     """
-
     data = {}
     hdul = fits.open(fits_fname)
     columns = ["RA", "DEC", "Z"]
@@ -38,6 +39,42 @@ def write_fits_file(fh_fname, output_fits_fname, input_fits_fname):
     for column in ["RA", "DEC", "Z", "X_COORD", "Y_COORD", "Z_COORD"]:
         tab[column+'_RECON'] = data[column.lower()]
     tab.write(output_fits_fname)
+
+
+def read_hdf5_file(hdf5_fname, hdf5_path, fh_fname):
+    """
+    Reads relevant columns from hdf5 file and converts to a filehandler file
+    to be passed to the C code
+    """
+    data = {}
+    f = h5py.File(hdf5_fname, "r")
+    columns = ["RA", "DEC", "Z"]
+    for column in columns:
+        dataset = os.path.join(hdf5_path, column.lower())
+        try:
+            data[column.lower()] = np.array(f[dataset])
+        except KeyError:
+            print("ERROR: ", hdf5_fname, " should contain an dataset ", column.lower(),
+                  " under the path ", hdf5_path, ".", file=sys.stderr)
+            exit(1)
+    fh.write_file(fh_fname, data)
+    f.close()
+
+
+def write_hdf5_file(fh_fname, output_hdf5_fname, input_hdf5_fname, hdf5_path):
+    """
+    Writes back to original hdf5 file the additional columns computed.
+    """
+    if input_hdf5_fname != output_hdf5_fname:
+        subprocess.run(["cp " + input_hdf5_fname + " " + output_hdf5_fname], shell=True)
+
+    f = h5py.File(output_hdf5_fname, "r+")
+    data = fh.read_file(fh_fname, None)
+    columns = ["RA", "DEC", "Z", "X_COORD", "Y_COORD", "Z_COORD"]
+    for column in columns:
+        full_path = os.path.join(hdf5_path, column.lower() + "_recon")
+        f[full_path] = data[column.lower()]
+    f.close()
 
 
 if __name__ == "__main__":
@@ -69,33 +106,68 @@ if __name__ == "__main__":
     Rf = config["reconstruction_config"]["R_smooth"]
     Om = config["reconstruction_config"]["Omega_m"]
     rsd_convention = config["reconstruction_config"]["RSD_convention"]
+    try:
+        hdf_preffix = config["reconstruction_config"]["hdf5_preffix"]
+    except KeyError:
+        hdf_preffix = "/"
 
-    data_fmt = None
-    randoms_fmt = None
+    data_fmt = os.path.splitext(data_file)[-1][1:]
+    randoms1_fmt = os.path.splitext(randoms1_file)[-1][1:]
+    randoms2_fmt = os.path.splitext(randoms2_file)[-1][1:]
+
+    hdf_exts = ['hdf', 'h4', 'hdf4', 'he2', 'h5', 'hdf5', 'he5']
 
     with tempfile.TemporaryDirectory(dir=output_path) as tmpdirname:
-        if os.path.splitext(data_file)[-1] == '.fits':
+        if data_fmt == "fits":
             new_data_file = os.path.join(tmpdirname, "data.fh")
             read_fits_file(data_file, new_data_file)
             data_file, old_data_file = new_data_file, data_file
-            data_fmt = 'fits'
 
             new_output_data_file = os.path.join(tmpdirname, "data_out.fh")
             old_output_data_file, output_data_file = output_data_file, new_output_data_file
+        elif data_fmt in hdf_exts:
+            new_data_file = os.path.join(tmpdirname, "data.fh")
+            read_hdf5_file(data_file, hdf_preffix, new_data_file)
+            data_file, old_data_file = new_data_file, data_file
 
-        if os.path.splitext(randoms1_file)[-1] == '.fits':
+            new_output_data_file = os.path.join(tmpdirname, "data_out.fh")
+            old_output_data_file, output_data_file = output_data_file, new_output_data_file
+        elif data_fmt == "fh":
+            pass
+        else:
+            raise RuntimeError("Unsupported format ", data_fmt, " for input data.")
+
+        if randoms1_fmt == "fits":
             new_randoms1_file = os.path.join(tmpdirname, "randoms1.fh")
             read_fits_file(randoms1_file, new_randoms1_file)
             randoms1_file = new_randoms1_file
+        elif randoms1_fmt in hdf_exts:
+            new_randoms1_file = os.path.join(tmpdirname, "randoms1.fh")
+            read_hdf5_file(randoms1_file, hdf_preffix, new_randoms1_file)
+            randoms1_file = new_randoms1_file
+        elif randoms1_fmt == "fh":
+            pass
+        else:
+            raise RuntimeError("Unsupported format ", randoms1_fmt, " for the randoms.")
 
-        if os.path.splitext(randoms2_file)[-1] == '.fits':
+        if randoms2_fmt == "fits":
             new_randoms2_file = os.path.join(tmpdirname, "randoms2.fh")
             read_fits_file(randoms2_file, new_randoms2_file)
             randoms2_file, old_randoms2_file = new_randoms2_file, randoms2_file
-            randoms_fmt = 'fits'
 
             new_shifted_randoms_file = os.path.join(tmpdirname, "randoms_out.fh")
             old_shifted_randoms_file, shifted_randoms_file = shifted_randoms_file, new_shifted_randoms_file
+        elif randoms2_fmt in hdf_exts:
+            new_randoms2_file = os.path.join(tmpdirname, "randoms2.fh")
+            read_hdf5_file(randoms2_file, hdf_preffix, new_randoms2_file)
+            randoms2_file, old_randoms2_file = new_randoms2_file, randoms2_file
+
+            new_shifted_randoms_file = os.path.join(tmpdirname, "randoms_out.fh")
+            old_shifted_randoms_file, shifted_randoms_file = shifted_randoms_file, new_shifted_randoms_file
+        elif randoms2_fmt == "fh":
+            pass
+        else:
+            raise RuntimeError("Unsupported format ", randoms2_fmt, " for the randoms.")
 
         ## Import external C code
         #try:
@@ -124,9 +196,21 @@ if __name__ == "__main__":
             write_fits_file(fh_fname=output_data_file,
                             output_fits_fname=old_output_data_file,
                             input_fits_fname=old_data_file)
+        elif data_fmt in hdf_exts:
+            write_hdf5_file(fh_fname=output_data_file,
+                            output_hdf5_fname=old_output_data_file,
+                            input_hdf5_fname=old_data_file,
+                            hdf5_path=hdf_preffix)
 
-        if randoms_fmt == "fits":
+
+        if randoms2_fmt == "fits":
             write_fits_file(fh_fname=shifted_randoms_file,
                             output_fits_fname=old_shifted_randoms_file,
                             input_fits_fname=old_randoms2_file)
+        elif randoms2_fmt in hdf_exts:
+            write_hdf5_file(fh_fname=shifted_randoms_file,
+                            output_hdf5_fname=old_shifted_randoms_file,
+                            input_hdf5_fname=old_randoms2_file,
+                            hdf5_path=hdf_preffix)
+
 
