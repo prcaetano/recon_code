@@ -1,13 +1,13 @@
 input:
     input_path: ./test
-    data_fname: test_data.fh
-    randoms1_fname: test_randoms.fh
-    randoms2_fname: test_randoms.fh
+    data_fname: test_data.fits
+    randoms1_fname: test_randoms.fits
+    randoms2_fname: test_randoms.fits
 
 output:
     output_path: ./test
-    displaced_catalog_fname: data_rec.fh
-    shifted_random_catalog_fname: rand_rec.fh
+    displaced_catalog_fname: data_rec.fits
+    shifted_random_catalog_fname: rand_rec.fits
 
 reconstruction_config:
     bias: 1.4
