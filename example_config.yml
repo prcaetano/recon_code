@@ -1,0 +1,26 @@
+input:
+    input_path: ./test
+    data_fname: [test_data.1.fits, test_data.2.fits]                # fits, hdf5 and fh files are accepted
+    randoms1_fname: [test_randoms.1.fits, test_randoms.2.fits]      # single files don't need the []'s
+    randoms2_fname: [test_randoms_2.1.fits, test_randoms_2.2.fits]
+    ra_col: RA                                                      # label of column holding ra values
+    dec_col: DEC                                                    # same for DEC
+    redshift_col : Z_RSD                                            # and z
+    row_mask: (${RA}>0.) & (${RA}<30.) & (${DEC}>0.) & (${DEC}<30.) # mask for row selection.
+    hdf5_preffix: '/galaxies'                                       # preffix for dataset holding columns on hdf5 files
+
+output:
+    output_path: ./test
+    output_data_fname: data_rec_split.fits                          # fits, hdf5 and fh files are accepted
+    output_randoms_fname: rand_rec_split.fits
+    columns_suffix: _RECON                                          # suffix for output columns
+    output_coordinates: both                                        # which reconstructed coords to save (one of 'spherical' (ra,dec,z), 'cartesian' (x,y,z) or both)
+    keep_cols: [NZ]                                                 # columns from input to keep on output file
+
+reconstruction_config:
+    bias: 1.4                                                       # bias, f, Omega_m and R_smooth values to use
+    f: 0.87
+    Omega_m: 0.3
+    R_smooth: 15
+    RSD_convention: RecSym                                          # 'RecSym' or 'RecIso'
+
