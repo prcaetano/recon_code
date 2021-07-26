@@ -186,12 +186,14 @@ if __name__ == "__main__":
     data = args.data_path
     randoms1 = args.randoms1_path
     randoms2 = args.randoms2_path
+    output_data_file = args.output_data_path
+    output_randoms_file = args.output_randoms_path
 
     input_path = config["input"]["input_path"]
     if data is None:
         data = config["input"]["data_fname"]
         if not isinstance(data, list):
-            data = list(data)
+            data = [data]
         data_files = list(map(lambda x: os.path.join(input_path, x), data))
     else:
         data_files = data
@@ -199,7 +201,7 @@ if __name__ == "__main__":
     if randoms1 is None:
         randoms1 = config["input"]["randoms1_fname"]
         if not isinstance(randoms1, list):
-            randoms1 = list(randoms1)
+            randoms1 = [randoms1]
         randoms1_files = list(map(lambda x: os.path.join(input_path, x), randoms1))
     else:
         randoms1_files = randoms1
@@ -207,7 +209,7 @@ if __name__ == "__main__":
     if randoms2 is None:
         randoms2 = config["input"]["randoms2_fname"]
         if not isinstance(randoms2, list):
-            randoms2 = list(randoms2)
+            randoms2 = [randoms2]
         randoms2_files = list(map(lambda x: os.path.join(input_path, x), randoms2))
     else:
         randoms2_files = randoms2
@@ -223,10 +225,12 @@ if __name__ == "__main__":
 
 
     output_path = config["output"]["output_path"]
-    output_data_file = os.path.join(output_path,
-                                    config["output"]["output_data_fname"])
-    output_randoms_file = os.path.join(output_path,
-                                       config["output"]["output_randoms_fname"])
+    if output_data_file is None:
+        output_data_file = os.path.join(output_path,
+                                        config["output"]["output_data_fname"])
+    if output_randoms_file is None:
+        output_randoms_file = os.path.join(output_path,
+                                           config["output"]["output_randoms_fname"])
     recon_suffix = read_config(config, "output", "columns_suffix", "_recon").lower()
 
     output_columns_str = read_config(config, "output", "output_coordinates", "both")
