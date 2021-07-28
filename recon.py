@@ -8,6 +8,7 @@ import tempfile
 import numpy as np
 import ndfilehandler as fh
 import h5py
+from glob import glob
 from astropy.table import Table
 from astropy.io import fits
 #from ctypes import *
@@ -144,6 +145,43 @@ def write_hdf5_file(input_fh_fname, output_fh_fname, output_hdf5_fname,
             out_col = output_columns[col]
             f[os.path.join(hdf5_path, col)] = output_data[col]
 
+
+def write_fh_file(input_fh_fname, output_fh_fname, input_columns,
+                  output_columns):
+
+    def get_cols(fname):
+        cols = glob(os.path.join(fname, "*.nd*"))
+        cols = [col.split("/")[-1].split(".nd")[0] for col in cols]
+        return cols
+
+    def remove_column(fname, col):
+        glob_expr = os.path.join(fname, col + ".nd.*")
+        subprocess.run(["rm -f {}".format(glob_expr)], shell=True, check=True)
+
+    def move_column(input_fname, in_col, dest_fname, out_col):
+        full_input_fname = glob(os.path.join(input_fname, in_col + ".nd.*"))[0]
+        extension = ".nd." + full_input_fname.split(".nd.")[1]
+        full_dest_fname = os.path.join(dest_fname, out_col + extension)
+        subprocess.run(["mv {} {}".format(full_input_fname, full_dest_fname)],
+                       shell=True, check=True)
+
+    def rename_column(fname, in_col, out_col):
+        move_column(fname, in_col, fname, out_col)
+
+    input_file_cols = get_cols(input_fh_fname)
+    output_file_cols = get_cols(output_fh_fname)
+
+    for col in output_file_cols:
+        if col not in output_columns:
+            remove_column(output_fh_fname, col)
+
+    for col in output_columns:
+        dest_col = output_columns[col]
+        rename_column(output_fh_fname, col, dest_col)
+
+    for col in input_columns:
+        dest_col = input_columns[col]
+        move_column(input_fh_fname, col, output_fh_fname, dest_col)
 
 
 def read_config(config, section, key, default=None):
@@ -295,11 +333,11 @@ if __name__ == "__main__":
 
         if randoms1_fmt == "fits":
             read_fits_files(fits_fnames=randoms1_files, fh_fname=fh_randoms1_file,
-                           columns=input_columns, row_mask=row_mask)
+                            columns=input_columns, row_mask=row_mask)
         elif randoms1_fmt in hdf_exts:
             read_hdf5_files(hdf5_fnames=randoms1_files, hdf5_path=hdf_preffix,
-                           fh_fname=fh_randoms1_file, columns=input_columns,
-                           row_mask=row_mask)
+                            fh_fname=fh_randoms1_file, columns=input_columns,
+                            row_mask=row_mask)
         elif randoms1_fmt == "fh":
             fh_randoms1_file = randoms1_files[0]
         else:
@@ -356,7 +394,10 @@ if __name__ == "__main__":
                             input_columns=keep_cols_dict,
                             output_columns=output_columns)
         elif output_data_fmt == "fh":
-            pass
+            write_fh_file(input_fh_fname=fh_data_file,
+                          output_fh_fname=output_data_file,
+                          input_columns=keep_cols_dict,
+                          output_columns=output_columns)
         else:
             raise RuntimeError("Unsupported format ", output_data_fmt, " for output data.")
 
@@ -374,7 +415,10 @@ if __name__ == "__main__":
                             input_columns=keep_cols_dict,
                             output_columns=output_columns)
         elif output_randoms_fmt == "fh":
-            pass
+            write_fh_file(input_fh_fname=fh_randoms2_file,
+                          output_fh_fname=output_randoms_file,
+                          input_columns=keep_cols_dict,
+                          output_columns=output_columns)
         else:
             raise RuntimeError("Unsupported format ", output_randoms_fmt, " for output randoms.")
 
