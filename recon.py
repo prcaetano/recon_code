@@ -189,7 +189,9 @@ if __name__ == "__main__":
     output_data_file = args.output_data_path
     output_randoms_file = args.output_randoms_path
 
-    input_path = config["input"]["input_path"]
+
+    if (data is None) and (randoms1 is None) and (randoms2 is None):
+        input_path = config["input"]["input_path"]
     if data is None:
         data = config["input"]["data_fname"]
         if not isinstance(data, list):
