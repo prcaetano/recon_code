@@ -14,27 +14,27 @@ are 'shifted' versions of the object and second random catalogs.
 # Use
 
 This version of the code accepts and writes out binary "files" in the
-filehandler format [https://github.com/martinjameswhite/filehandler].
+filehandler format (https://github.com/martinjameswhite/filehandler).
 The syntax is:
 
-`
+```bash
     recon <data-file> <random-file> <random-file> <output-file> \
     <output-shifted-randoms-file> <bias> <f-growth> <R-filter> \
     <Omega m> <RSD Convention (RecIso|RecSym)>
-`
+```
 
 There is also a python wrapper available, which runs the cpp code as
 a subprocess and takes care of input/output convertion from fits and
 hdf5 formats. The syntax in this case is:
 
-`
+```bash
     recon.py <YAML configuration file> \
     [--data_path <fits, hdf5 or fh file> [<fits, hdf5 or fh file> ...]] \
     [--randoms1_path <fits, hdf5 or fh file> [<fits, hdf5 or fh file> ...]] \
     [--randoms2_path <fits, hdf5 or fh file> [<fits, hdf5 or fh file> ...]] \
     [--output_data_path [<fits, hdf5 or fh file>]] \
     [--output_randoms_path [<fits, hdf5 or fh file>]] \
-`
+```
 
 Where the YAML configuration file holds configuration regarding
 cosmology, RSD Conventions, IO formats and basic catalog pre-
