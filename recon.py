@@ -304,7 +304,7 @@ if __name__ == "__main__":
     output_data_fmt = os.path.splitext(output_data_file)[-1][1:]
     output_randoms_fmt = os.path.splitext(output_randoms_file)[-1][1:]
 
-    hdf_exts = ['hdf', 'h4', 'hdf4', 'he2', 'h5', 'hdf5', 'he5']
+    hdf_exts = ['hdf', 'h4', 'hdf4', 'he2', 'h5', 'hdf5', 'he5', 'h5py']
 
     with tempfile.TemporaryDirectory(dir=output_path) as tmpdirname:
         fh_data_file = os.path.join(tmpdirname, "data.fh")
