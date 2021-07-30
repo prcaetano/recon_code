@@ -6,7 +6,15 @@ input:
     ra_col: RA                                                      # label of column holding ra values
     dec_col: DEC                                                    # same for DEC
     redshift_col : Z_RSD                                            # and z
+    ra_col_randoms: ra                                              # label of column holding ra value
+#                                                                   for the random catalog
+#                                                                   (if empty, assumes equal to ra_col)
+    dec_col_randoms: dec                                            # same for dec
+    redshift_col_randoms: z                                         # and z
     row_mask: (${RA}>0.) & (${RA}<30.) & (${DEC}>0.) & (${DEC}<30.) # mask for row selection.
+    row_mask_randoms: (${ra}>0.) & (${ra}<30.) & (${dec}>0.) & (${dec}<30.) # same for randoms
+#                                                                             (also assumes equal to
+#                                                                              row_mask if empty)
     hdf5_preffix: '/galaxies'                                       # preffix for dataset holding columns on hdf5 files
 
 output:
@@ -16,6 +24,7 @@ output:
     columns_suffix: _RECON                                          # suffix for output columns
     output_coordinates: both                                        # which reconstructed coords to save (one of 'spherical' (ra,dec,z), 'cartesian' (x,y,z) or both)
     keep_cols: [NZ]                                                 # columns from input to keep on output file
+    keep_cols_randoms: [nz]                                         # same for randoms (if distinct)
 
 reconstruction_config:
     bias: 1.4                                                       # bias, f, Omega_m and R_smooth values to use

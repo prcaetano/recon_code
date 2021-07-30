@@ -258,10 +258,18 @@ if __name__ == "__main__":
     ra_col = read_config(config, "input", "ra_col", "ra")
     dec_col = read_config(config, "input", "dec_col", "dec")
     redshift_col = read_config(config, "input", "redshift_col", "z")
+    ra_col_randoms = read_config(config, "input", "ra_col_randoms", ra_col)
+    dec_col_randoms = read_config(config, "input", "dec_col_randoms", dec_col)
+    redshift_col_randoms = read_config(config, "input", "redshift_col_randoms", redshift_col)
+
     input_columns = {'ra': ra_col, 'dec': dec_col, 'z': redshift_col}
+    input_columns_randoms = {'ra': ra_col_randoms, 'dec': dec_col_randoms, 'z': redshift_col_randoms}
     row_mask = read_config(config, "input", "row_mask", "")
+    row_mask_randoms = read_config(config, "input", "row_mask_randoms", row_mask)
     if row_mask == "":
         row_mask = None
+    if row_mask_randoms == "":
+        row_mask_randoms = None
 
 
     output_path = config["output"]["output_path"]
@@ -285,11 +293,18 @@ if __name__ == "__main__":
         output_columns['z_coord'] = 'z_coord'+recon_suffix
 
     keep_cols = read_config(config, "output", "keep_cols", "")
+    keep_cols_randoms = read_config(config, "output", "keep_cols_randoms", keep_cols)
     keep_cols_dict = {}
+    keep_cols_dict_randoms = {}
     if keep_cols != "":
         for col in keep_cols:
             input_columns[col.lower()] = col
             keep_cols_dict[col.lower()] = col.lower()
+    if keep_cols != "":
+        for col in keep_cols_randoms:
+            input_columns_randoms[col.lower()] = col
+            keep_cols_dict_randoms[col.lower()] = col.lower()
+
 
 
     b = config["reconstruction_config"]["bias"]
@@ -333,11 +348,11 @@ if __name__ == "__main__":
 
         if randoms1_fmt == "fits":
             read_fits_files(fits_fnames=randoms1_files, fh_fname=fh_randoms1_file,
-                            columns=input_columns, row_mask=row_mask)
+                            columns=input_columns_randoms, row_mask=row_mask_randoms)
         elif randoms1_fmt in hdf_exts:
             read_hdf5_files(hdf5_fnames=randoms1_files, hdf5_path=hdf_preffix,
-                            fh_fname=fh_randoms1_file, columns=input_columns,
-                            row_mask=row_mask)
+                            fh_fname=fh_randoms1_file, columns=input_columns_randoms,
+                            row_mask=row_mask_randoms)
         elif randoms1_fmt == "fh":
             fh_randoms1_file = randoms1_files[0]
         else:
@@ -345,11 +360,11 @@ if __name__ == "__main__":
 
         if randoms2_fmt == "fits":
             read_fits_files(fits_fnames=randoms2_files, fh_fname=fh_randoms2_file,
-                            columns=input_columns, row_mask=row_mask)
+                            columns=input_columns_randoms, row_mask=row_mask_randoms)
         elif randoms2_fmt in hdf_exts:
             read_hdf5_files(hdf5_fnames=randoms2_files, hdf5_path=hdf_preffix,
-                            fh_fname=fh_randoms2_file, columns=input_columns,
-                            row_mask=row_mask)
+                            fh_fname=fh_randoms2_file, columns=input_columns_randoms,
+                            row_mask=row_mask_randoms)
         elif randoms2_fmt == "fh":
             fh_randoms2_file = randoms2_files[0]
             fh_output_randoms_file = output_randoms_file
@@ -405,19 +420,19 @@ if __name__ == "__main__":
             write_fits_file(input_fh_fname=fh_randoms2_file,
                             output_fh_fname=fh_output_randoms_file,
                             output_fits_fname=output_randoms_file,
-                            input_columns=keep_cols_dict,
+                            input_columns=keep_cols_dict_randoms,
                             output_columns=output_columns)
         elif output_randoms_fmt in hdf_exts:
             write_hdf5_file(input_fh_fname=fh_randoms2_file,
                             output_fh_fname=fh_output_randoms_file,
                             output_hdf5_fname=output_randoms_file,
                             hdf5_path=hdf_preffix,
-                            input_columns=keep_cols_dict,
+                            input_columns=keep_cols_dict_randoms,
                             output_columns=output_columns)
         elif output_randoms_fmt == "fh":
             write_fh_file(input_fh_fname=fh_randoms2_file,
                           output_fh_fname=output_randoms_file,
-                          input_columns=keep_cols_dict,
+                          input_columns=keep_cols_dict_randoms,
                           output_columns=output_columns)
         else:
             raise RuntimeError("Unsupported format ", output_randoms_fmt, " for output randoms.")
