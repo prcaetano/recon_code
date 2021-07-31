@@ -272,7 +272,9 @@ if __name__ == "__main__":
         row_mask_randoms = None
 
 
-    output_path = config["output"]["output_path"]
+    if output_data_file is not None:
+        tentative_output_path = '/'.join(output_data_file.split("/")[:-1])
+    output_path = read_config(config, "output", "output_path", tentative_output_path)
     if output_data_file is None:
         output_data_file = os.path.join(output_path,
                                         config["output"]["output_data_fname"])
