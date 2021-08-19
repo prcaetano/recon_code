@@ -61,11 +61,11 @@ void    myexception(const std::exception& e)
 
 extern "C" int	recon(char *data_file, char *randoms1_file, char *randoms2_file,
                       char *output_file, char *shifted_randoms_file,
-                      float b, float f, float Rf, float Om, bool reciso)
+                      float b, float f, float Rf, float Om, bool reciso, bool is_box_data)
 {
   bias = b;		// Sets global variable.
   beta = f/bias;	// Sets global variable.
-  LCDM lcdm(Om);		// Change OmegaM here if necessary.
+  LCDM lcdm(Om);
 
 #ifdef	TESTMG
   // Make a cosine wave (only in x-direction) and solve for it with
@@ -89,9 +89,18 @@ extern "C" int	recon(char *data_file, char *randoms1_file, char *randoms2_file,
 #endif
 
   // Read the data and figure out the 3D positions and enclosing box.
-  std::vector<struct particle> D = read_data(data_file,lcdm);
-  std::vector<struct particle> R1= read_data(randoms1_file,lcdm);
-  std::vector<struct particle> R2= read_data(randoms2_file,lcdm);
+  std::vector<struct particle> D;
+  std::vector<struct particle> R1;
+  std::vector<struct particle> R2;
+  if (!is_box_data) {
+    D = read_data(data_file,lcdm);
+    R1= read_data(randoms1_file,lcdm);
+    R2= read_data(randoms2_file,lcdm);
+  } else {
+    D = read_box_data(data_file);
+    R1= read_box_data(randoms1_file);
+    R2= read_box_data(randoms2_file);
+  }
   std::cout<<"# Read "<<std::setw(10)<<D.size()
            <<" objects from "<<data_file<<std::endl;
   std::cout<<"# Read "<<std::setw(10)<<R1.size()
@@ -118,15 +127,19 @@ extern "C" int	recon(char *data_file, char *randoms1_file, char *randoms2_file,
       beta = 0;
   shift_obj(R2,phi);
 
-  write_and_destruct_data(D , output_file, lcdm);
-  write_and_destruct_data(R2, shifted_randoms_file, lcdm);
+  write_and_destruct_data(D , output_file, lcdm, is_box_data);
+  write_and_destruct_data(R2, shifted_randoms_file, lcdm, is_box_data);
 
 #ifndef	SKIPRAW
-  std::vector<struct particle> D_raw  = read_data(data_file,lcdm);
-  std::vector<struct particle> R2_raw = read_data(randoms2_file,lcdm);
-
-  write_and_destruct_data(D_raw ,"data_raw.fh", lcdm);
-  write_and_destruct_data(R2_raw,"rand_raw.fh", lcdm);
+  if (!is_box_data) {
+    std::vector<struct particle> D_raw  = read_data(data_file,lcdm);
+    std::vector<struct particle> R2_raw = read_data(randoms2_file,lcdm);
+  } else {
+    std::vector<struct particle> D_raw  = read_box_data(data_file);
+    std::vector<struct particle> R2_raw = read_box_data(randoms2_file);
+  }
+  write_and_destruct_data(D_raw ,"data_raw.fh", lcdm, is_box_data);
+  write_and_destruct_data(R2_raw,"rand_raw.fh", lcdm, is_box_data);
 #endif
 
   return(0);
@@ -135,10 +148,11 @@ extern "C" int	recon(char *data_file, char *randoms1_file, char *randoms2_file,
 
 int	main(int argc, char **argv)
 {
-  if (argc!=11) {
+  if ((argc!=11) && (argc!=12)) {
     std::cout<<"Usage: recon <data-file> <random-file> <random-file>"
              <<" <output-file> <output-shifted-randoms-file>"
-             <<" <bias> <f-growth> <R-filter> <Omega m> <RSD Convention (RecIso|RecSym)>"<<std::endl;
+             <<" <bias> <f-growth> <R-filter> <Omega m> <RSD Convention (RecIso|RecSym)>"
+             <<" [<is_cartesian_data (1|0, default=0)>]"<<std::endl;
     myexit(1);
   }
   bool reciso = strcmp(argv[10], "RecIso") == 0;
@@ -147,9 +161,12 @@ int	main(int argc, char **argv)
       std::cout<<"ERROR: RSD Convention must be one of RecIso or RecSym"<<std::endl;
       myexit(1);
   }
+  bool is_box_data = false;
+  if (argc==12)
+    is_box_data = atoi(argv[11])==1;
 
   return recon(argv[1], argv[2], argv[3],
                argv[4], argv[5],
-               atof(argv[6]), atof(argv[7]), atof(argv[8]), atof(argv[9]), reciso);
+               atof(argv[6]), atof(argv[7]), atof(argv[8]), atof(argv[9]), reciso, is_box_data);
 }
 

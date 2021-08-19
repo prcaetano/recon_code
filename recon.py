@@ -106,7 +106,7 @@ def read_hdf5_files(hdf5_fnames, hdf5_path, fh_fname, columns, row_mask):
             masks.append(mask)
         else:
             # Assuming hdf5 file well formed: all columns w/ same size
-            sizes[i+1] = sizes[i] + f[os.path.join(hdf5_path, columns['ra'])].len()
+            sizes[i+1] = sizes[i] + f[os.path.join(hdf5_path, columns[columns.keys()[0]])].len()
         f.close()
 
     for field in columns:
@@ -254,16 +254,31 @@ if __name__ == "__main__":
     else:
         randoms2_files = randoms2
 
+    is_cartesian = read_config(config, "input", "input_coordinates", "spherical").lower() == "cartesian"
+
     hdf_preffix = read_config(config, "input", "hdf5_preffix", "/")
+
     ra_col = read_config(config, "input", "ra_col", "ra")
     dec_col = read_config(config, "input", "dec_col", "dec")
     redshift_col = read_config(config, "input", "redshift_col", "z")
     ra_col_randoms = read_config(config, "input", "ra_col_randoms", ra_col)
     dec_col_randoms = read_config(config, "input", "dec_col_randoms", dec_col)
     redshift_col_randoms = read_config(config, "input", "redshift_col_randoms", redshift_col)
+    x_col = read_config(config, "input", "x_col", "x_coord")
+    y_col = read_config(config, "input", "y_col", "y_coord")
+    z_col = read_config(config, "input", "z_col", "z_coord")
+    x_col_randoms = read_config(config, "input", "x_col_randoms", x_col)
+    y_col_randoms = read_config(config, "input", "y_col_randoms", y_col)
+    z_col_randoms = read_config(config, "input", "z_col_ranndoms", z_col)
 
-    input_columns = {'ra': ra_col, 'dec': dec_col, 'z': redshift_col}
-    input_columns_randoms = {'ra': ra_col_randoms, 'dec': dec_col_randoms, 'z': redshift_col_randoms}
+    if not is_cartesian:
+        input_columns = {'ra': ra_col, 'dec': dec_col, 'z': redshift_col}
+        input_columns_randoms = {'ra': ra_col_randoms, 'dec': dec_col_randoms, 'z': redshift_col_randoms}
+    else:
+        input_columns = {'x_coord': x_col, 'y_coord': y_col, 'z_coord': z_col}
+        input_columns_randoms = {'x_coord': x_col_randoms, 'y_coord': y_col_randoms,
+                                 'z_coord': z_col_randoms}
+
     row_mask = read_config(config, "input", "row_mask", "")
     row_mask_randoms = read_config(config, "input", "row_mask_randoms", row_mask)
     if row_mask == "":
@@ -274,6 +289,8 @@ if __name__ == "__main__":
 
     if output_data_file is not None:
         tentative_output_path = '/'.join(output_data_file.split("/")[:-1])
+    else:
+        tentative_output_path = ''
     output_path = read_config(config, "output", "output_path", tentative_output_path)
     if output_data_file is None:
         output_data_file = os.path.join(output_path,
@@ -286,6 +303,8 @@ if __name__ == "__main__":
     output_columns_str = read_config(config, "output", "output_coordinates", "both")
     output_columns = {}
     if (output_columns_str == "both") or (output_columns_str == "spherical"):
+        if is_cartesian:
+            raise RuntimeError("Not implemented spherical output for cartesian input.")
         output_columns['ra'] = (ra_col+recon_suffix).lower()
         output_columns['dec'] = (dec_col+recon_suffix).lower()
         output_columns['z'] = (redshift_col+recon_suffix).lower()
@@ -373,27 +392,11 @@ if __name__ == "__main__":
         else:
             raise RuntimeError("Unsupported format ", randoms2_fmt, " for the randoms.")
 
-        ## Import external C code
-        #try:
-        #    lib = CDLL("recon.so")
-        #except OSError:
-        #    raise RuntimeError("Couldn't load the library recon.so. Make sure it was "
-        #          "compiled and LD_LIBRARY_PATH contains the directory holding it.")
-        #recon = lib.recon
-        #recon.argtypes = [c_char_p, c_char_p, c_char_p,
-        #                  c_char_p, c_char_p,
-        #                  c_float, c_float, c_float, c_float, c_char_p]
-        #recon.restype = c_int
-
-        #recon(data_file.encode(), randoms1_file.encode(), randoms2_file.encode(),
-        #      output_data_file.encode(), output_randoms_file.encode(),
-        #      c_float(b), c_float(f), c_float(Rf), c_float(Om), reciso.encode())
-
         cmd = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])), "recon")
-        args = "{} {} {} {} {} {} {} {} {} {}".format(fh_data_file, fh_randoms1_file,
+        args = "{} {} {} {} {} {} {} {} {} {} {}".format(fh_data_file, fh_randoms1_file,
                                                       fh_randoms2_file, fh_output_data_file,
                                                       fh_output_randoms_file, b, f, Rf, Om,
-                                                      rsd_convention)
+                                                      rsd_convention, int(is_cartesian))
         subprocess.run([cmd + " " + args], shell=True, check=True)
 
 

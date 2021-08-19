@@ -1,6 +1,5 @@
 CC     = CC
-OPT    = -funroll-loops -O -fopenmp -I./include -DSKIPRAW -DWRITECARTESIAN # -DREADWEIGHT #-DWRITECARTESIAN
-
+OPT    = -funroll-loops -O -fopenmp -I./include -DSKIPRAW #-DDISTANT_OBSERVER_ZAXIS #-DREADWEIGHT
 
 
 recon: recon.o io.o multigrid.o grid.o shift.o smooth.o

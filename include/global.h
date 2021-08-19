@@ -38,11 +38,17 @@ extern struct particle fill_particle(const double ra, const double dec,
                                      const double  z, const double  wt,
                                      const LCDM& lcdm);
 
+extern struct particle fill_particle_box(const double x, const double y,
+                                         const double  z, const double  wt);
+
 extern std::vector<struct particle> read_data(const char fname[],
                                               const LCDM& lcdm);
 
+extern std::vector<struct particle> read_box_data(const char fname[]);
+
 extern void write_and_destruct_data(std::vector<struct particle>& P,
-                                    const char fname[], const LCDM& lcdm);
+                                    const char fname[], const LCDM& lcdm,
+                                    bool write_to_box);
 
 extern void remap_pos(std::vector<struct particle>& D,
                       std::vector<struct particle>& R1,
