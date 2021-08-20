@@ -241,12 +241,14 @@ def write_fh_file(input_fh_fname, output_fh_fname, input_columns,
         move_column(input_fh_fname, col, output_fh_fname, dest_col)
 
 
-def read_config(config, section, key, default=None):
+def read_config(config, section, key, default=None, overwrite=None):
     "Reads (section, key) pair from config file, setting to default if not available."
     try:
         ret = config[section][key]
     except KeyError:
         ret = default
+    if overwrite is not None:
+        ret = overwrite
     return ret
 
 
@@ -256,21 +258,30 @@ if __name__ == "__main__":
     #except IndexError:
     #    print("Usage: recon.py <YAML configuration file>")
     #    exit()
-    parser = argparse.ArgumentParser(prog='recon.py', description="",)
+    parser = argparse.ArgumentParser(prog='recon.py', description="",
+                                     epilog='All optional parameters, if specified, overwrite corresponding values set at the specified configuration file. Accepted input file formats are ascii, fits and hdf5.')
     parser.add_argument('config_file', metavar='<YAML configuration file>', action='store', type=str,
                         help='yaml file holding configuration options')
-    parser.add_argument('--data_path', metavar='<fits, hdf5 or fh file>', nargs='+',
-                        help='path(s) to input data file (overrides configuration file)')
+    parser.add_argument('--data_path', metavar='<fname>', nargs='+',
+                        help='path(s) to input data file')
     parser.add_argument('--randoms1_path', nargs='+',
-                        metavar='<fits, hdf5 or fh file>',
-                        help='path(s) to first set of randoms (idem)')
+                        metavar='<fname>',
+                        help='path(s) to first set of randoms')
     parser.add_argument('--randoms2_path', nargs='+',
-                        metavar='<fits, hdf5 or fh file>',
-                        help='path(s) to second set of randoms (idem)')
-    parser.add_argument('--output_data_path', nargs='?', metavar='<fits, hdf5 or fh file>',
-                        help='path to output data file (idem)')
-    parser.add_argument('--output_randoms_path', metavar='<fits, hdf5 or fh file>', nargs='?',
-                        help='path to output randoms file (idem)')
+                        metavar='<fname>',
+                        help='path(s) to second set of randoms')
+    parser.add_argument('--output_data_path', nargs=1, metavar='<fname>',
+                        help='path to output data file')
+    parser.add_argument('--output_randoms_path', metavar='<fname>', nargs=1,
+                        help='path to output randoms file')
+    parser.add_argument('--bias', metavar='<bias>', help='value of bias')
+    parser.add_argument('--f', metavar='<f>', help='value of growth factor')
+    parser.add_argument('--R_smooth', metavar='<Rs>', help='smoothing scale to use (in Mpc/h)')
+    parser.add_argument('--Omega_m', metavar='<Om>', help='Omega m value to assume')
+    parser.add_argument('--Ngrid', metavar='<Ng>', help='Grid size')
+    parser.add_argument('--RSD_convention', metavar='<RSD_convention>',
+                        choices=['RecIso', 'RecSym'], help='RSD convention (RecSym or RecIso)')
+
 
     args = parser.parse_args()
     config_file = args.config_file
@@ -385,11 +396,18 @@ if __name__ == "__main__":
 
 
 
-    b = config["reconstruction_config"]["bias"]
-    f = config["reconstruction_config"]["f"]
-    Rf = config["reconstruction_config"]["R_smooth"]
-    Om = config["reconstruction_config"]["Omega_m"]
-    rsd_convention = config["reconstruction_config"]["RSD_convention"]
+    b = read_config(config, "reconstruction_config", "bias",
+                    overwrite=args.bias)
+    f = read_config(config, "reconstruction_config", "f",
+                    overwrite=args.f)
+    Rf = read_config(config, "reconstruction_config", "R_smooth",
+                     overwrite=args.R_smooth)
+    Om = read_config(config, "reconstruction_config", "Omega_m",
+                     overwrite=args.Omega_m)
+    Ngrid = read_config(config, "reconstruction_config", "Ngrid",
+                        default=512, overwrite=args.Ngrid)
+    rsd_convention = read_config(config, "reconstruction_config", "RSD_convention",
+                                 overwrite=args.RSD_convention)
 
     data_fmt = os.path.splitext(data_files[0])[-1][1:]
     randoms1_fmt = os.path.splitext(randoms1_files[0])[-1][1:]
@@ -460,10 +478,10 @@ if __name__ == "__main__":
             raise RuntimeError("Unsupported format ", randoms2_fmt, " for the randoms.")
 
         cmd = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])), "recon")
-        args = "{} {} {} {} {} {} {} {} {} {} {}".format(fh_data_file, fh_randoms1_file,
+        args = "{} {} {} {} {} {} {} {} {} {} {} {}".format(fh_data_file, fh_randoms1_file,
                                                       fh_randoms2_file, fh_output_data_file,
                                                       fh_output_randoms_file, b, f, Rf, Om,
-                                                      rsd_convention, int(is_cartesian))
+                                                      Ngrid, rsd_convention, int(is_cartesian))
         subprocess.run([cmd + " " + args], shell=True, check=True)
 
 

@@ -5,14 +5,14 @@ input:
     randoms2_fname: [test_randoms_2.1.fits, test_randoms_2.2.fits]
     input_coordinates: spherical                                    # cartesian or spherical
 #if spherical
-    ra_col: RA               # label of column holding ra values
+    ra_col: RA               # label (or integer index, if ascii file) of column holding ra values
     dec_col: DEC             # same for DEC
     redshift_col : Z_RSD     # and z
     ra_col_randoms: ra       # label of column holding ra value for the random catalog (if empty, assumes equal to ra_col)
     dec_col_randoms: dec     # same for dec
     redshift_col_randoms: z  # and z
 #else
-    x_col: x_coord           # label of columns holding x coordinates
+    x_col: x_coord           # label (or integer index, if ascii file) of columns holding x coordinates
     y_col: y_coord           # same for y
     z_col: z_coord           # and z
     x_col_randoms: x_coord   # and same for randoms
@@ -35,9 +35,10 @@ output:
     keep_cols_randoms: [nz]                    # same for randoms (if distinct)
 
 reconstruction_config:
-    bias: 1.4                                  # bias, f, Omega_m and R_smooth values to use
+    bias: 1.4                                  # bias, f, Omega_m, R_smooth and grid size values to use
     f: 0.87
     Omega_m: 0.3
     R_smooth: 15
+    Ngrid: 512
     RSD_convention: RecSym                     # 'RecSym' or 'RecIso'
 

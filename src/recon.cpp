@@ -34,6 +34,7 @@
 // Global variables.
 float	bias=1,beta=0;
 struct	Box box;
+int Ng;
 
 
 
@@ -148,28 +149,37 @@ extern "C" int	recon(char *data_file, char *randoms1_file, char *randoms2_file,
 
 int	main(int argc, char **argv)
 {
-  if ((argc!=11) && (argc!=12)) {
+  if ((argc!=12) && (argc!=13)) {
     std::cout<<"Usage: recon <data-file> <random-file> <random-file>"
              <<" <output-file> <output-shifted-randoms-file>"
-             <<" <bias> <f-growth> <R-filter> <Omega m> <RSD Convention (RecIso|RecSym)>"
+             <<" <bias> <f-growth> <R-filter> <Omega m> <Ngrid> <RSD Convention (RecIso|RecSym)>"
              <<" [<is_cartesian_data (1|0, default=0)>]"<<std::endl;
     myexit(1);
   }
-  bool reciso = strcmp(argv[10], "RecIso") == 0;
-  bool recsym = strcmp(argv[10], "RecSym") == 0;
+  Ng=atoi(argv[10]); // sets global variable defining grid size
+  bool reciso = strcmp(argv[11], "RecIso") == 0;
+  bool recsym = strcmp(argv[11], "RecSym") == 0;
   if (!reciso && !recsym) {
       std::cout<<"ERROR: RSD Convention must be one of RecIso or RecSym"<<std::endl;
       myexit(1);
   }
   bool is_box_data = false;
-  if (argc==12)
-    is_box_data = atoi(argv[11])==1;
+  if (argc==13)
+    is_box_data = atoi(argv[12])==1;
 
 #ifdef DISTANT_OBSERVER_ZAXIS
   std::cout<<"# Distant observer in z-axis assumed for RSD corrections."<<std::endl;
 #else
   std::cout<<"# Fixed observer at (x,y,z) = (0,0,0) assumed for RSD corrections."<<std::endl;
 #endif
+  std::cout<<"# Parameter values:"<<std::endl;
+  std::cout<<"  bias           = "<<atof(argv[6])<<std::endl;
+  std::cout<<"  f-growth       = "<<atof(argv[7])<<std::endl;
+  std::cout<<"  R-filter       = "<<atof(argv[8])<<std::endl;
+  std::cout<<"  Omega m        = "<<atof(argv[9])<<std::endl;
+  std::cout<<"  Ngrid          = "<<atoi(argv[10])<<std::endl;
+  std::cout<<"  RSD Convention = "<<argv[11]<<std::endl;
+
   return recon(argv[1], argv[2], argv[3],
                argv[4], argv[5],
                atof(argv[6]), atof(argv[7]), atof(argv[8]), atof(argv[9]), reciso, is_box_data);
