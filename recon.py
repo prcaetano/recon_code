@@ -146,6 +146,63 @@ def write_hdf5_file(input_fh_fname, output_fh_fname, output_hdf5_fname,
             f[os.path.join(hdf5_path, col)] = output_data[col]
 
 
+def read_ascii_files(ascii_fnames, fh_fname, columns, row_mask):
+    """
+    Reads relevant columns from ascii file and converts to a filehandler file
+    to be passed to the C code
+    """
+    data = {}
+
+    data = np.concatenate([np.loadtxt(ascii_fname) for ascii_fname in ascii_fnames])
+
+    # Processing row_mask string to apply row selection
+    if row_mask is not None:
+        while (row_mask.find("${") != -1):
+            col_label = row_mask[row_mask.find("${"):].split("}")[0][2:]
+            sub_expression = "data_arr[:,{}]".format(int(col_label))
+            row_mask = row_mask.replace("${"+col_label+"}", sub_expression)
+
+    data_cols = {field: [] for field in columns}
+    for i, ascii_fname in enumerate(ascii_fnames):
+        data_arr = np.loadtxt(ascii_fname)
+        if row_mask is not None:
+            try:
+                mask = eval(row_mask)
+            except:
+                raise RuntimeError("Invalid row selection specified.")
+            data_arr = data_arr[mask]
+        for field in columns:
+            col = columns[field]
+            try:
+                col_data = data_arr[:,col]
+            except KeyError:
+                raise RuntimeError(ascii_fname, " should contain an column at key ", col)
+            data_cols[field].append(col_data)
+    data = {field: np.concatenate(data_cols[field]).astype('f8') for field in columns}
+    fh.write_file(fh_fname, data)
+
+
+def write_ascii_file(input_fh_fname, output_fh_fname, output_ascii_fname,
+                     input_columns, output_columns):
+    """
+    Converts output fh file to ascii, keeping only the specified columns
+    """
+    output_data = fh.read_file(output_fh_fname, list(output_columns))
+    input_data = fh.read_file(input_fh_fname, list(input_columns))
+
+    data = {}
+    for col in input_columns:
+        out_col = input_columns[col]
+        data[out_col] = input_data.pop(col)
+    for col in output_columns:
+        out_col = output_columns[col]
+        data[out_col] = output_data.pop(col)
+    columns = [output_columns[col] for col in output_columns]
+    columns.extend([input_columns[col] for col in input_columns])
+    tab = Table(data)[columns]
+    tab.write(output_ascii_fname, format='ascii.fast_commented_header')
+
+
 def write_fh_file(input_fh_fname, output_fh_fname, input_columns,
                   output_columns):
 
@@ -319,12 +376,12 @@ if __name__ == "__main__":
     keep_cols_dict_randoms = {}
     if keep_cols != "":
         for col in keep_cols:
-            input_columns[col.lower()] = col
-            keep_cols_dict[col.lower()] = col.lower()
+            input_columns[str(col).lower()] = col
+            keep_cols_dict[str(col).lower()] = str(col).lower()
     if keep_cols != "":
         for col in keep_cols_randoms:
-            input_columns_randoms[col.lower()] = col
-            keep_cols_dict_randoms[col.lower()] = col.lower()
+            input_columns_randoms[str(col).lower()] = col
+            keep_cols_dict_randoms[str(col).lower()] = str(col).lower()
 
 
 
@@ -341,6 +398,7 @@ if __name__ == "__main__":
     output_randoms_fmt = os.path.splitext(output_randoms_file)[-1][1:]
 
     hdf_exts = ['hdf', 'h4', 'hdf4', 'he2', 'h5', 'hdf5', 'he5', 'h5py']
+    ascii_exts = ['dat', 'txt', 'tsv', 'csv', 'xyz', 'xyzw']
 
     with tempfile.TemporaryDirectory(dir=output_path) as tmpdirname:
         fh_data_file = os.path.join(tmpdirname, "data.fh")
@@ -361,6 +419,9 @@ if __name__ == "__main__":
             read_hdf5_files(hdf5_fnames=data_files, hdf5_path=hdf_preffix,
                             fh_fname=fh_data_file, columns=input_columns,
                             row_mask=row_mask)
+        elif data_fmt in ascii_exts:
+            read_ascii_files(ascii_fnames=data_files, fh_fname=fh_data_file,
+                            columns=input_columns, row_mask=row_mask)
         elif data_fmt == "fh":
             fh_data_file = data_files[0]
             fh_output_data_file = output_data_file
@@ -374,6 +435,9 @@ if __name__ == "__main__":
             read_hdf5_files(hdf5_fnames=randoms1_files, hdf5_path=hdf_preffix,
                             fh_fname=fh_randoms1_file, columns=input_columns_randoms,
                             row_mask=row_mask_randoms)
+        elif randoms1_fmt in ascii_exts:
+            read_ascii_files(ascii_fnames=randoms1_files, fh_fname=fh_randoms1_file,
+                             columns=input_columns_randoms, row_mask=row_mask_randoms)
         elif randoms1_fmt == "fh":
             fh_randoms1_file = randoms1_files[0]
         else:
@@ -386,6 +450,9 @@ if __name__ == "__main__":
             read_hdf5_files(hdf5_fnames=randoms2_files, hdf5_path=hdf_preffix,
                             fh_fname=fh_randoms2_file, columns=input_columns_randoms,
                             row_mask=row_mask_randoms)
+        elif randoms2_fmt in ascii_exts:
+            read_ascii_files(ascii_fnames=randoms2_files, fh_fname=fh_randoms2_file,
+                             columns=input_columns_randoms, row_mask=row_mask_randoms)
         elif randoms2_fmt == "fh":
             fh_randoms2_file = randoms2_files[0]
             fh_output_randoms_file = output_randoms_file
@@ -413,6 +480,12 @@ if __name__ == "__main__":
                             hdf5_path=hdf_preffix,
                             input_columns=keep_cols_dict,
                             output_columns=output_columns)
+        elif output_data_fmt in ascii_exts:
+            write_ascii_file(input_fh_fname=fh_data_file,
+                            output_fh_fname=fh_output_data_file,
+                            output_ascii_fname=output_data_file,
+                            input_columns=keep_cols_dict,
+                            output_columns=output_columns)
         elif output_data_fmt == "fh":
             write_fh_file(input_fh_fname=fh_data_file,
                           output_fh_fname=output_data_file,
@@ -432,6 +505,12 @@ if __name__ == "__main__":
                             output_fh_fname=fh_output_randoms_file,
                             output_hdf5_fname=output_randoms_file,
                             hdf5_path=hdf_preffix,
+                            input_columns=keep_cols_dict_randoms,
+                            output_columns=output_columns)
+        elif output_randoms_fmt in ascii_exts:
+            write_ascii_file(input_fh_fname=fh_randoms2_file,
+                            output_fh_fname=fh_output_randoms_file,
+                            output_ascii_fname=output_randoms_file,
                             input_columns=keep_cols_dict_randoms,
                             output_columns=output_columns)
         elif output_randoms_fmt == "fh":
