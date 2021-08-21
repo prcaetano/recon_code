@@ -11,10 +11,14 @@ import h5py
 from glob import glob
 from astropy.table import Table
 from astropy.io import fits
-#from ctypes import *
 
 
-def read_fits_files(fits_fnames, fh_fname, columns, row_mask):
+fits_exts = ['fits']
+hdf_exts = ['hdf', 'h4', 'hdf4', 'he2', 'h5', 'hdf5', 'he5', 'h5py']
+ascii_exts = ['dat', 'txt', 'tsv', 'csv', 'xyz', 'xyzw']
+
+
+def read_fits_files(fits_fnames, fh_fname, columns, row_mask, **kwargs):
     """
     Reads relevant columns from fits file and converts to a filehandler file
     to be passed to the C code
@@ -60,9 +64,8 @@ def read_fits_files(fits_fnames, fh_fname, columns, row_mask):
         hdul.close()
     fh.write_file(fh_fname, data)
 
-
 def write_fits_file(input_fh_fname, output_fh_fname, output_fits_fname,
-                    input_columns, output_columns):
+                    input_columns, output_columns, **kwargs):
     """
     Converts output fh file to fits, keeping only the specified columns
     """
@@ -78,8 +81,7 @@ def write_fits_file(input_fh_fname, output_fh_fname, output_fits_fname,
         data[out_col] = output_data.pop(col)
     Table(data).write(output_fits_fname)
 
-
-def read_hdf5_files(hdf5_fnames, hdf5_path, fh_fname, columns, row_mask):
+def read_hdf5_files(hdf5_fnames, hdf5_path, fh_fname, columns, row_mask, **kwargs):
     """
     Reads relevant columns from hdf5 file and converts to a filehandler file
     to be passed to the C code
@@ -128,9 +130,8 @@ def read_hdf5_files(hdf5_fnames, hdf5_path, fh_fname, columns, row_mask):
         f.close()
     fh.write_file(fh_fname, data)
 
-
 def write_hdf5_file(input_fh_fname, output_fh_fname, output_hdf5_fname,
-                    hdf5_path, input_columns, output_columns):
+                    hdf5_path, input_columns, output_columns, **kwargs):
     """
     Converts output fh file to hdf5, keeping only the specified columns
     """
@@ -145,8 +146,7 @@ def write_hdf5_file(input_fh_fname, output_fh_fname, output_hdf5_fname,
             out_col = output_columns[col]
             f[os.path.join(hdf5_path, col)] = output_data[col]
 
-
-def read_ascii_files(ascii_fnames, fh_fname, columns, row_mask):
+def read_ascii_files(ascii_fnames, fh_fname, columns, row_mask, **kwargs):
     """
     Reads relevant columns from ascii file and converts to a filehandler file
     to be passed to the C code
@@ -181,9 +181,8 @@ def read_ascii_files(ascii_fnames, fh_fname, columns, row_mask):
     data = {field: np.concatenate(data_cols[field]).astype('f8') for field in columns}
     fh.write_file(fh_fname, data)
 
-
 def write_ascii_file(input_fh_fname, output_fh_fname, output_ascii_fname,
-                     input_columns, output_columns):
+                     input_columns, output_columns, **kwargs):
     """
     Converts output fh file to ascii, keeping only the specified columns
     """
@@ -202,62 +201,175 @@ def write_ascii_file(input_fh_fname, output_fh_fname, output_ascii_fname,
     tab = Table(data)[columns]
     tab.write(output_ascii_fname, format='ascii.fast_commented_header')
 
+def read_input_files(fnames, **kwargs):
+    data_fmts = [os.path.splitext(fname)[-1][1:] for fname in fnames]
+    for fmt in data_fmts:
+        if fmt != data_fmts[0]:
+            raise RuntimeError("Input formats should be uniform when multiple files provided.")
+    data_fmt = data_fmts[0]
 
-def write_fh_file(input_fh_fname, output_fh_fname, input_columns,
-                  output_columns):
+    if data_fmt in fits_exts:
+        read_fits_files(fits_fnames=fnames, **kwargs)
+    elif data_fmt in hdf_exts:
+        read_hdf5_files(hdf5_fnames=fnames, **kwargs)
+    elif data_fmt in ascii_exts:
+        read_ascii_files(ascii_fnames=fnames, **kwargs)
+    else:
+        raise RuntimeError("Unsupported format ", data_fmt, " for input file ", fnames[0], ".")
 
-    def get_cols(fname):
-        cols = glob(os.path.join(fname, "*.nd*"))
-        cols = [col.split("/")[-1].split(".nd")[0] for col in cols]
-        return cols
+def write_output_file(output_fname, **kwargs):
+    output_data_fmt = os.path.splitext(output_fname)[-1][1:]
 
-    def remove_column(fname, col):
-        glob_expr = os.path.join(fname, col + ".nd.*")
-        subprocess.run(["rm -f {}".format(glob_expr)], shell=True, check=True)
+    if output_data_fmt in fits_exts:
+        write_fits_file(output_fits_fname=output_fname, **kwargs)
+    elif output_data_fmt in hdf_exts:
+        write_hdf5_file(output_hdf5_fname=output_fname, **kwargs)
+    elif output_data_fmt in ascii_exts:
+        write_ascii_file(output_ascii_fname=output_fname, **kwargs)
+    else:
+        raise RuntimeError("Unsupported format ", output_data_fmt, " for output file ", output_fname, ".")
 
-    def move_column(input_fname, in_col, dest_fname, out_col):
-        full_input_fname = glob(os.path.join(input_fname, in_col + ".nd.*"))[0]
-        extension = ".nd." + full_input_fname.split(".nd.")[1]
-        full_dest_fname = os.path.join(dest_fname, out_col + extension)
-        subprocess.run(["mv {} {}".format(full_input_fname, full_dest_fname)],
-                       shell=True, check=True)
+def load_config(parser):
+    # namespace to return
+    ns = argparse.Namespace
 
-    def rename_column(fname, in_col, out_col):
-        move_column(fname, in_col, fname, out_col)
+    # parse input and load YAML file
+    args = parser.parse_args()
+    with open(args.config_file, "r") as f:
+        config = yaml.safe_load(f)
 
-    input_file_cols = get_cols(input_fh_fname)
-    output_file_cols = get_cols(output_fh_fname)
+    # Small function to read from config, optionally setting defaults and overwrites
+    def read_config(config, section, key, default=None, overwrite=None):
+        try:
+            ret = config[section][key]
+        except KeyError:
+            ret = default
+        if overwrite is not None:
+            ret = overwrite
+        return ret
 
-    for col in output_file_cols:
-        if col not in output_columns:
-            remove_column(output_fh_fname, col)
+    # Small function to handle joining base_paths and filenames from config files
+    # or load directly from cli
+    def load_fname_paths(section, base_path_key, key, overwrite=None):
+        if overwrite is not None:
+            paths = overwrite
+        else:
+            input_path  = read_config(config, section, base_path_key, default="/")
+            fnames = read_config(config, section, key)
+            if not isinstance(fnames, list):
+                fnames = [fnames]
+            paths = [os.path.join(input_path, file_) for file_ in fnames]
 
-    for col in output_columns:
-        dest_col = output_columns[col]
-        rename_column(output_fh_fname, col, dest_col)
+        if paths is None:
+            raise RuntimeError("If input/{} is not specified in the configuration file, "
+                               "it should be provided as argument "
+                               "to the application call.".format(config_key))
+        return paths
 
-    for col in input_columns:
-        dest_col = input_columns[col]
-        move_column(input_fh_fname, col, output_fh_fname, dest_col)
+    # Reads input/output files
+    ns.data_files          = load_fname_paths("input", "input_path", "data_fname",
+                                              overwrite=args.data_path)
+    ns.randoms1_files      = load_fname_paths("input", "input_path", "randoms1_fname",
+                                              overwrite=args.randoms1_path)
+    ns.randoms2_files      = load_fname_paths("input", "input_path", "randoms2_fname",
+                                              overwrite=args.randoms2_path)
+    ns.output_data_file    = load_fname_paths("output", "output_path", "output_data_fname",
+                                              overwrite=args.output_data_path)[0]
+    ns.output_randoms_file = load_fname_paths("output", "output_path", "output_randoms_fname",
+                                              overwrite=args.output_randoms_path)[0]
 
+    ns.output_path = read_config(config, "output", "output_path",
+                                 default=os.path.dirname(ns.output_data_file))
 
-def read_config(config, section, key, default=None, overwrite=None):
-    "Reads (section, key) pair from config file, setting to default if not available."
-    try:
-        ret = config[section][key]
-    except KeyError:
-        ret = default
-    if overwrite is not None:
-        ret = overwrite
-    return ret
+    # hdf_preffix of dataset if hdf5 format is used
+    ns.hdf_preffix = read_config(config, "input", "hdf5_preffix", "/")
+
+    # Reads input columns
+    ra_col               = read_config(config, "input", "ra_col", "ra")
+    dec_col              = read_config(config, "input", "dec_col", "dec")
+    redshift_col         = read_config(config, "input", "redshift_col", "z")
+    ra_col_randoms       = read_config(config, "input", "ra_col_randoms", ra_col)
+    dec_col_randoms      = read_config(config, "input", "dec_col_randoms", dec_col)
+    redshift_col_randoms = read_config(config, "input", "redshift_col_randoms", redshift_col)
+    x_col                = read_config(config, "input", "x_col", "x_coord")
+    y_col                = read_config(config, "input", "y_col", "y_coord")
+    z_col                = read_config(config, "input", "z_col", "z_coord")
+    x_col_randoms        = read_config(config, "input", "x_col_randoms", x_col)
+    y_col_randoms        = read_config(config, "input", "y_col_randoms", y_col)
+    z_col_randoms        = read_config(config, "input", "z_col_ranndoms", z_col)
+
+    ns.is_cartesian = read_config(config, "input", "input_coordinates", "spherical").lower() == "cartesian"
+    if not ns.is_cartesian:
+        ns.input_columns = {'ra': ra_col,
+                            'dec': dec_col,
+                            'z': redshift_col}
+        ns.input_columns_randoms = {'ra': ra_col_randoms,
+                                    'dec': dec_col_randoms,
+                                    'z': redshift_col_randoms}
+    else:
+        ns.input_columns = {'x_coord': x_col,
+                            'y_coord': y_col,
+                            'z_coord': z_col}
+        ns.input_columns_randoms = {'x_coord': x_col_randoms,
+                                    'y_coord': y_col_randoms,
+                                    'z_coord': z_col_randoms}
+
+    # Reads row mask
+    ns.row_mask         = read_config(config, "input", "row_mask", "")
+    ns.row_mask_randoms = read_config(config, "input", "row_mask_randoms", ns.row_mask)
+    if ns.row_mask == "":
+        ns.row_mask = None
+    if ns.row_mask_randoms == "":
+        ns.row_mask_randoms = None
+
+    # Reads output columns
+    recon_suffix       = read_config(config, "output", "columns_suffix", "_recon").lower()
+    output_columns_str = read_config(config, "output", "output_coordinates", "both")
+    ns.output_columns = {}
+    if (output_columns_str == "both") or (output_columns_str == "spherical"):
+        if ns.is_cartesian:
+            raise RuntimeError("Not implemented spherical output for cartesian input.")
+        ns.output_columns['ra']  = (ra_col+recon_suffix).lower()
+        ns.output_columns['dec'] = (dec_col+recon_suffix).lower()
+        ns.output_columns['z']   = (redshift_col+recon_suffix).lower()
+    if (output_columns_str == "both") or (output_columns_str == "cartesian"):
+        ns.output_columns['x_coord'] = 'x_coord'+recon_suffix
+        ns.output_columns['y_coord'] = 'y_coord'+recon_suffix
+        ns.output_columns['z_coord'] = 'z_coord'+recon_suffix
+
+    # Reads columns to keep from input and add to both input and output columns
+    keep_cols         = read_config(config, "output", "keep_cols", "")
+    keep_cols_randoms = read_config(config, "output", "keep_cols_randoms", keep_cols)
+    ns.keep_cols_dict = {}
+    ns.keep_cols_dict_randoms = {}
+    if keep_cols != "":
+        for col in keep_cols:
+            ns.input_columns[str(col).lower()] = col
+            ns.keep_cols_dict[str(col).lower()] = str(col).lower()
+    if keep_cols != "":
+        for col in keep_cols_randoms:
+            ns.input_columns_randoms[str(col).lower()] = col
+            ns.keep_cols_dict_randoms[str(col).lower()] = str(col).lower()
+
+    # Reads parameters to pass to recon code
+    ns.b              = read_config(config, "reconstruction_config", "bias",
+                                    overwrite=args.bias)
+    ns.f              = read_config(config, "reconstruction_config", "f",
+                                    overwrite=args.f)
+    ns.Rf             = read_config(config, "reconstruction_config", "R_smooth",
+                                    overwrite=args.R_smooth)
+    ns.Om             = read_config(config, "reconstruction_config", "Omega_m",
+                                    overwrite=args.Omega_m)
+    ns.Ngrid          = read_config(config, "reconstruction_config", "Ngrid",
+                                    default=512, overwrite=args.Ngrid)
+    ns.rsd_convention = read_config(config, "reconstruction_config", "RSD_convention",
+                                    overwrite=args.RSD_convention)
+
+    return ns
 
 
 if __name__ == "__main__":
-    #try:
-    #    config_file = sys.argv[1]
-    #except IndexError:
-    #    print("Usage: recon.py <YAML configuration file>")
-    #    exit()
+    #CLI parsing
     parser = argparse.ArgumentParser(prog='recon.py', description="",
                                      epilog='All optional parameters, if specified, overwrite corresponding values set at the specified configuration file. Accepted input file formats are ascii, fits and hdf5.')
     parser.add_argument('config_file', metavar='<YAML configuration file>', action='store', type=str,
@@ -282,260 +394,48 @@ if __name__ == "__main__":
     parser.add_argument('--RSD_convention', metavar='<RSD_convention>',
                         choices=['RecIso', 'RecSym'], help='RSD convention (RecSym or RecIso)')
 
+    #Process configuration using both CLI and provided YAML config file
+    config = load_config(parser)
 
-    args = parser.parse_args()
-    config_file = args.config_file
-
-    with open(config_file, "r") as f:
-        config = yaml.safe_load(f)
-
-    data = args.data_path
-    randoms1 = args.randoms1_path
-    randoms2 = args.randoms2_path
-    output_data_file = args.output_data_path
-    output_randoms_file = args.output_randoms_path
-
-
-    if (data is None) and (randoms1 is None) and (randoms2 is None):
-        input_path = config["input"]["input_path"]
-    if data is None:
-        data = config["input"]["data_fname"]
-        if not isinstance(data, list):
-            data = [data]
-        data_files = list(map(lambda x: os.path.join(input_path, x), data))
-    else:
-        data_files = data
-
-    if randoms1 is None:
-        randoms1 = config["input"]["randoms1_fname"]
-        if not isinstance(randoms1, list):
-            randoms1 = [randoms1]
-        randoms1_files = list(map(lambda x: os.path.join(input_path, x), randoms1))
-    else:
-        randoms1_files = randoms1
-
-    if randoms2 is None:
-        randoms2 = config["input"]["randoms2_fname"]
-        if not isinstance(randoms2, list):
-            randoms2 = [randoms2]
-        randoms2_files = list(map(lambda x: os.path.join(input_path, x), randoms2))
-    else:
-        randoms2_files = randoms2
-
-    is_cartesian = read_config(config, "input", "input_coordinates", "spherical").lower() == "cartesian"
-
-    hdf_preffix = read_config(config, "input", "hdf5_preffix", "/")
-
-    ra_col = read_config(config, "input", "ra_col", "ra")
-    dec_col = read_config(config, "input", "dec_col", "dec")
-    redshift_col = read_config(config, "input", "redshift_col", "z")
-    ra_col_randoms = read_config(config, "input", "ra_col_randoms", ra_col)
-    dec_col_randoms = read_config(config, "input", "dec_col_randoms", dec_col)
-    redshift_col_randoms = read_config(config, "input", "redshift_col_randoms", redshift_col)
-    x_col = read_config(config, "input", "x_col", "x_coord")
-    y_col = read_config(config, "input", "y_col", "y_coord")
-    z_col = read_config(config, "input", "z_col", "z_coord")
-    x_col_randoms = read_config(config, "input", "x_col_randoms", x_col)
-    y_col_randoms = read_config(config, "input", "y_col_randoms", y_col)
-    z_col_randoms = read_config(config, "input", "z_col_ranndoms", z_col)
-
-    if not is_cartesian:
-        input_columns = {'ra': ra_col, 'dec': dec_col, 'z': redshift_col}
-        input_columns_randoms = {'ra': ra_col_randoms, 'dec': dec_col_randoms, 'z': redshift_col_randoms}
-    else:
-        input_columns = {'x_coord': x_col, 'y_coord': y_col, 'z_coord': z_col}
-        input_columns_randoms = {'x_coord': x_col_randoms, 'y_coord': y_col_randoms,
-                                 'z_coord': z_col_randoms}
-
-    row_mask = read_config(config, "input", "row_mask", "")
-    row_mask_randoms = read_config(config, "input", "row_mask_randoms", row_mask)
-    if row_mask == "":
-        row_mask = None
-    if row_mask_randoms == "":
-        row_mask_randoms = None
-
-
-    if output_data_file is not None:
-        tentative_output_path = '/'.join(output_data_file.split("/")[:-1])
-    else:
-        tentative_output_path = ''
-    output_path = read_config(config, "output", "output_path", tentative_output_path)
-    if output_data_file is None:
-        output_data_file = os.path.join(output_path,
-                                        config["output"]["output_data_fname"])
-    if output_randoms_file is None:
-        output_randoms_file = os.path.join(output_path,
-                                           config["output"]["output_randoms_fname"])
-    recon_suffix = read_config(config, "output", "columns_suffix", "_recon").lower()
-
-    output_columns_str = read_config(config, "output", "output_coordinates", "both")
-    output_columns = {}
-    if (output_columns_str == "both") or (output_columns_str == "spherical"):
-        if is_cartesian:
-            raise RuntimeError("Not implemented spherical output for cartesian input.")
-        output_columns['ra'] = (ra_col+recon_suffix).lower()
-        output_columns['dec'] = (dec_col+recon_suffix).lower()
-        output_columns['z'] = (redshift_col+recon_suffix).lower()
-    if (output_columns_str == "both") or (output_columns_str == "cartesian"):
-        output_columns['x_coord'] = 'x_coord'+recon_suffix
-        output_columns['y_coord'] = 'y_coord'+recon_suffix
-        output_columns['z_coord'] = 'z_coord'+recon_suffix
-
-    keep_cols = read_config(config, "output", "keep_cols", "")
-    keep_cols_randoms = read_config(config, "output", "keep_cols_randoms", keep_cols)
-    keep_cols_dict = {}
-    keep_cols_dict_randoms = {}
-    if keep_cols != "":
-        for col in keep_cols:
-            input_columns[str(col).lower()] = col
-            keep_cols_dict[str(col).lower()] = str(col).lower()
-    if keep_cols != "":
-        for col in keep_cols_randoms:
-            input_columns_randoms[str(col).lower()] = col
-            keep_cols_dict_randoms[str(col).lower()] = str(col).lower()
-
-
-
-    b = read_config(config, "reconstruction_config", "bias",
-                    overwrite=args.bias)
-    f = read_config(config, "reconstruction_config", "f",
-                    overwrite=args.f)
-    Rf = read_config(config, "reconstruction_config", "R_smooth",
-                     overwrite=args.R_smooth)
-    Om = read_config(config, "reconstruction_config", "Omega_m",
-                     overwrite=args.Omega_m)
-    Ngrid = read_config(config, "reconstruction_config", "Ngrid",
-                        default=512, overwrite=args.Ngrid)
-    rsd_convention = read_config(config, "reconstruction_config", "RSD_convention",
-                                 overwrite=args.RSD_convention)
-
-    data_fmt = os.path.splitext(data_files[0])[-1][1:]
-    randoms1_fmt = os.path.splitext(randoms1_files[0])[-1][1:]
-    randoms2_fmt = os.path.splitext(randoms2_files[0])[-1][1:]
-    output_data_fmt = os.path.splitext(output_data_file)[-1][1:]
-    output_randoms_fmt = os.path.splitext(output_randoms_file)[-1][1:]
-
-    hdf_exts = ['hdf', 'h4', 'hdf4', 'he2', 'h5', 'hdf5', 'he5', 'h5py']
-    ascii_exts = ['dat', 'txt', 'tsv', 'csv', 'xyz', 'xyzw']
-
-    with tempfile.TemporaryDirectory(dir=output_path) as tmpdirname:
+    with tempfile.TemporaryDirectory(dir=config.output_path) as tmpdirname:
         fh_data_file = os.path.join(tmpdirname, "data.fh")
         fh_randoms1_file = os.path.join(tmpdirname, "randoms1.fh")
         fh_randoms2_file = os.path.join(tmpdirname, "randoms2.fh")
         fh_output_data_file = os.path.join(tmpdirname, "data_out.fh")
         fh_output_randoms_file = os.path.join(tmpdirname, "randoms_out.fh")
 
-        if output_data_fmt == "fh":
-            fh_output_data_file = output_data_file
-        if output_randoms_fmt == "fh":
-            fh_output_randoms_file = output_randoms_file
+        # Read input files and convert to fh format
+        read_input_files(fnames=config.data_files, fh_fname=fh_data_file,
+                         columns=config.input_columns, row_mask=config.row_mask,
+                         hdf5_path=config.hdf_preffix)
+        read_input_files(fnames=config.randoms1_files, fh_fname=fh_randoms1_file,
+                         columns=config.input_columns_randoms, row_mask=config.row_mask_randoms,
+                         hdf5_path=config.hdf_preffix)
+        read_input_files(fnames=config.randoms2_files, fh_fname=fh_randoms2_file,
+                         columns=config.input_columns_randoms, row_mask=config.row_mask_randoms,
+                         hdf5_path=config.hdf_preffix)
 
-        if data_fmt == "fits":
-            read_fits_files(fits_fnames=data_files, fh_fname=fh_data_file,
-                            columns=input_columns, row_mask=row_mask)
-        elif data_fmt in hdf_exts:
-            read_hdf5_files(hdf5_fnames=data_files, hdf5_path=hdf_preffix,
-                            fh_fname=fh_data_file, columns=input_columns,
-                            row_mask=row_mask)
-        elif data_fmt in ascii_exts:
-            read_ascii_files(ascii_fnames=data_files, fh_fname=fh_data_file,
-                            columns=input_columns, row_mask=row_mask)
-        elif data_fmt == "fh":
-            fh_data_file = data_files[0]
-            fh_output_data_file = output_data_file
-        else:
-            raise RuntimeError("Unsupported format ", data_fmt, " for input data.")
-
-        if randoms1_fmt == "fits":
-            read_fits_files(fits_fnames=randoms1_files, fh_fname=fh_randoms1_file,
-                            columns=input_columns_randoms, row_mask=row_mask_randoms)
-        elif randoms1_fmt in hdf_exts:
-            read_hdf5_files(hdf5_fnames=randoms1_files, hdf5_path=hdf_preffix,
-                            fh_fname=fh_randoms1_file, columns=input_columns_randoms,
-                            row_mask=row_mask_randoms)
-        elif randoms1_fmt in ascii_exts:
-            read_ascii_files(ascii_fnames=randoms1_files, fh_fname=fh_randoms1_file,
-                             columns=input_columns_randoms, row_mask=row_mask_randoms)
-        elif randoms1_fmt == "fh":
-            fh_randoms1_file = randoms1_files[0]
-        else:
-            raise RuntimeError("Unsupported format ", randoms1_fmt, " for the randoms.")
-
-        if randoms2_fmt == "fits":
-            read_fits_files(fits_fnames=randoms2_files, fh_fname=fh_randoms2_file,
-                            columns=input_columns_randoms, row_mask=row_mask_randoms)
-        elif randoms2_fmt in hdf_exts:
-            read_hdf5_files(hdf5_fnames=randoms2_files, hdf5_path=hdf_preffix,
-                            fh_fname=fh_randoms2_file, columns=input_columns_randoms,
-                            row_mask=row_mask_randoms)
-        elif randoms2_fmt in ascii_exts:
-            read_ascii_files(ascii_fnames=randoms2_files, fh_fname=fh_randoms2_file,
-                             columns=input_columns_randoms, row_mask=row_mask_randoms)
-        elif randoms2_fmt == "fh":
-            fh_randoms2_file = randoms2_files[0]
-            fh_output_randoms_file = output_randoms_file
-        else:
-            raise RuntimeError("Unsupported format ", randoms2_fmt, " for the randoms.")
-
+        # Call C subprocess
         cmd = os.path.join(os.path.abspath(os.path.dirname(sys.argv[0])), "recon")
-        args = "{} {} {} {} {} {} {} {} {} {} {} {}".format(fh_data_file, fh_randoms1_file,
-                                                      fh_randoms2_file, fh_output_data_file,
-                                                      fh_output_randoms_file, b, f, Rf, Om,
-                                                      Ngrid, rsd_convention, int(is_cartesian))
+        args = " ".join(str(x) for x in [fh_data_file, fh_randoms1_file, fh_randoms2_file,
+                                         fh_output_data_file, fh_output_randoms_file,
+                                         config.b, config.f, config.Rf, config.Om, config.Ngrid,
+                                         config.rsd_convention, int(config.is_cartesian)])
         subprocess.run([cmd + " " + args], shell=True, check=True)
 
 
-        if output_data_fmt == "fits":
-            write_fits_file(input_fh_fname=fh_data_file,
-                            output_fh_fname=fh_output_data_file,
-                            output_fits_fname=output_data_file,
-                            input_columns=keep_cols_dict,
-                            output_columns=output_columns)
-        elif output_data_fmt in hdf_exts:
-            write_hdf5_file(input_fh_fname=fh_data_file,
-                            output_fh_fname=fh_output_data_file,
-                            output_hdf5_fname=output_data_file,
-                            hdf5_path=hdf_preffix,
-                            input_columns=keep_cols_dict,
-                            output_columns=output_columns)
-        elif output_data_fmt in ascii_exts:
-            write_ascii_file(input_fh_fname=fh_data_file,
-                            output_fh_fname=fh_output_data_file,
-                            output_ascii_fname=output_data_file,
-                            input_columns=keep_cols_dict,
-                            output_columns=output_columns)
-        elif output_data_fmt == "fh":
-            write_fh_file(input_fh_fname=fh_data_file,
-                          output_fh_fname=output_data_file,
-                          input_columns=keep_cols_dict,
-                          output_columns=output_columns)
-        else:
-            raise RuntimeError("Unsupported format ", output_data_fmt, " for output data.")
+        # Convert back from fh and write to definitive output files
+        write_output_file(input_fh_fname=fh_data_file,
+                          output_fh_fname=fh_output_data_file,
+                          output_fname=config.output_data_file,
+                          hdf5_path=config.hdf_preffix,
+                          input_columns=config.keep_cols_dict,
+                          output_columns=config.output_columns)
 
-        if output_randoms_fmt == "fits":
-            write_fits_file(input_fh_fname=fh_randoms2_file,
-                            output_fh_fname=fh_output_randoms_file,
-                            output_fits_fname=output_randoms_file,
-                            input_columns=keep_cols_dict_randoms,
-                            output_columns=output_columns)
-        elif output_randoms_fmt in hdf_exts:
-            write_hdf5_file(input_fh_fname=fh_randoms2_file,
-                            output_fh_fname=fh_output_randoms_file,
-                            output_hdf5_fname=output_randoms_file,
-                            hdf5_path=hdf_preffix,
-                            input_columns=keep_cols_dict_randoms,
-                            output_columns=output_columns)
-        elif output_randoms_fmt in ascii_exts:
-            write_ascii_file(input_fh_fname=fh_randoms2_file,
-                            output_fh_fname=fh_output_randoms_file,
-                            output_ascii_fname=output_randoms_file,
-                            input_columns=keep_cols_dict_randoms,
-                            output_columns=output_columns)
-        elif output_randoms_fmt == "fh":
-            write_fh_file(input_fh_fname=fh_randoms2_file,
-                          output_fh_fname=output_randoms_file,
-                          input_columns=keep_cols_dict_randoms,
-                          output_columns=output_columns)
-        else:
-            raise RuntimeError("Unsupported format ", output_randoms_fmt, " for output randoms.")
+        write_output_file(input_fh_fname=fh_randoms2_file,
+                          output_fh_fname=fh_output_randoms_file,
+                          output_fname=config.output_randoms_file,
+                          hdf5_path=config.hdf_preffix,
+                          input_columns=config.keep_cols_dict_randoms,
+                          output_columns=config.output_columns)
 
