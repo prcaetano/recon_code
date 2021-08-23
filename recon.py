@@ -296,7 +296,7 @@ def load_config(parser):
     z_col                = read_config(config, "input", "z_col", "z_coord")
     x_col_randoms        = read_config(config, "input", "x_col_randoms", x_col)
     y_col_randoms        = read_config(config, "input", "y_col_randoms", y_col)
-    z_col_randoms        = read_config(config, "input", "z_col_ranndoms", z_col)
+    z_col_randoms        = read_config(config, "input", "z_col_randoms", z_col)
 
     ns.is_cartesian = read_config(config, "input", "input_coordinates", "spherical").lower() == "cartesian"
     if not ns.is_cartesian:
