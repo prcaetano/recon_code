@@ -194,6 +194,7 @@ def read_config(config, section, key, default=None):
 
 
 if __name__ == "__main__":
+    print(sys.argv)
     #try:
     #    config_file = sys.argv[1]
     #except IndexError:
@@ -306,6 +307,8 @@ if __name__ == "__main__":
         for col in keep_cols_randoms:
             input_columns_randoms[col.lower()] = col
             keep_cols_dict_randoms[col.lower()] = col.lower()
+    write_grid = read_config(config, "output", "write_grid", False)
+    grid_output_fname = read_config(config, "output", "grid_output", "grid.npz")
 
 
 
@@ -438,4 +441,10 @@ if __name__ == "__main__":
                           output_columns=output_columns)
         else:
             raise RuntimeError("Unsupported format ", output_randoms_fmt, " for output randoms.")
+
+
+        if write_grid:
+            grid_data = fh.read_file("grid_out.fh", ["delta", "phi"])
+            with open(grid_output_fname, "w") as out_grid_file:
+                np.savez(out_grid_file, delta=grid_data["delta"], phi=grid_data["phi"])
 

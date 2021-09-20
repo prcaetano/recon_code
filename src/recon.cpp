@@ -9,6 +9,9 @@
 #include	<exception>
 
 #include	"global.h"
+#ifdef PRINT_GRID
+#include    "filehandler.h"
+#endif
 #include	"multigrid.h"
 
 // A code to perform reconstruction, using the lowest order algorithm.
@@ -109,6 +112,17 @@ extern "C" int	recon(char *data_file, char *randoms1_file, char *randoms2_file,
   // displacement potential, phi.
   std::vector<float> delta = make_grid(D,R1,Rf);
   std::vector<float> phi   = MultiGrid::fmg(delta,Ng);
+
+#ifdef PRINT_GRID
+  std::vector<double> delta_dbl, phi_dbl;
+  std::cout<<"# Writing delta and phi grids to fh output file."<<std::endl;
+  std::vector<long int> ndims = {(long) delta.size()};
+  std::copy(delta.begin(), delta.end(), delta_dbl.begin());
+  FileHandler::write_dble("grid_out.fh", "delta", delta_dbl, ndims);
+  std::copy(phi.begin(), phi.end(), phi_dbl.begin());
+  FileHandler::write_dble("grid_out.fh", "phi", phi_dbl, ndims);
+  std::cout<<"# Done."<<std::endl;
+#endif
 
   // Shift the particles and randoms back -- if you want to not enhance
   // the line-of-sight shift for the randoms you need to change beta before
