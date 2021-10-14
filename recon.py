@@ -445,6 +445,5 @@ if __name__ == "__main__":
 
         if write_grid:
             grid_data = fh.read_file("grid_out.fh", ["delta", "phi"])
-            with open(grid_output_fname, "w") as out_grid_file:
-                np.savez(out_grid_file, delta=grid_data["delta"], phi=grid_data["phi"])
+            np.savez(grid_output_fname, delta=grid_data["delta"], phi=grid_data["phi"])
 

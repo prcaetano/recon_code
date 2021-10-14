@@ -30,6 +30,9 @@ void	enclosing_box(const std::vector<struct particle>& R) {
         box.min[idim] = R[nn].pos[idim];
     }
   }
+  std::cout<<"#DEBUG: box.max = "<<box.max[0]<<" "<<box.max[1]<<" "<<box.max[2]<<std::endl;
+  std::cout<<"#DEBUG: box.min = "<<box.min[0]<<" "<<box.min[1]<<" "<<box.min[2]<<std::endl;
+
   // Now use this to define a center and a length, allowing room
   // for padding.
   box.L=-1;

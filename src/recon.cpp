@@ -115,6 +115,8 @@ extern "C" int	recon(char *data_file, char *randoms1_file, char *randoms2_file,
 
 #ifdef PRINT_GRID
   std::vector<double> delta_dbl, phi_dbl;
+  delta_dbl.resize(Ng*Ng*Ng);
+  phi_dbl.resize(Ng*Ng*Ng);
   std::cout<<"# Writing delta and phi grids to fh output file."<<std::endl;
   std::vector<long int> ndims = {(long) delta.size()};
   std::copy(delta.begin(), delta.end(), delta_dbl.begin());

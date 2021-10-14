@@ -1,5 +1,5 @@
 CC     = CC
-OPT    = -funroll-loops -O -fopenmp -I./include -DSKIPRAW -DWRITECARTESIAN # -DREADWEIGHT #-DWRITECARTESIAN
+OPT    = -funroll-loops -O -fopenmp -I./include -DSKIPRAW -DWRITECARTESIAN -DPRINT_GRID # -DREADWEIGHT #-DWRITECARTESIAN
 
 
 
